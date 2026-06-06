@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :root {
+    --canvas: 250 250 248;
+    --frame: 232 232 228;
+    --surface: 255 255 255;
+    --surface-alt: 249 250 251;
+    --surface-muted: 243 244 246;
+    --border-default: 243 244 246;
+    --border-subtle: 249 250 251;
+    --text-heading: 11 50 68;
+    --text-body: 15 62 82;
+    --text-secondary: 107 114 128;
+    --text-muted: 156 163 175;
+    --text-faint: 209 213 219;
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+    --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.08);
+    --shadow-player: 0 -2px 16px rgba(0, 0, 0, 0.1);
+    color-scheme: light;
+  }
+
+  .dark {
+    --canvas: 3 7 18;
+    --frame: 0 0 0;
+    --surface: 17 24 39;
+    --surface-alt: 31 41 55;
+    --surface-muted: 55 65 81;
+    --border-default: 55 65 81;
+    --border-subtle: 31 41 55;
+    --text-heading: 249 250 251;
+    --text-body: 229 231 235;
+    --text-secondary: 156 163 175;
+    --text-muted: 107 114 128;
+    --text-faint: 75 85 99;
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+    --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.4);
+    --shadow-player: 0 -2px 16px rgba(0, 0, 0, 0.3);
+    color-scheme: dark;
+  }
+
+  html {
+    font-family: 'Outfit', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: rgb(var(--canvas));
+    overflow-x: hidden;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
