@@ -5,16 +5,13 @@ import { cityPacks } from '../../lib/seed-data';
 import { useLocation } from '../../hooks/useLocation';
 import { useNearbyStories } from '../../hooks/useNearbyStories';
 import { useModeContent } from '../../hooks/useModeContent';
-import { useContentAccess } from '../../hooks/useContentAccess';
 import { useConnectivity } from '../../hooks/useConnectivity';
 import StatusBar from '../layout/StatusBar';
 import HeaderBar from '../layout/HeaderBar';
 import BottomTabBar from '../layout/BottomTabBar';
-import HeroCard from './HeroCard';
-import EmptyState from './EmptyState';
 import RecommendedTours from './RecommendedTours';
 import ExperiencesToBookSection from '../experiences/ExperiencesToBookSection';
-import ExploreCityGrid from './ExploreCityGrid';
+import ExploreCityGrid, { type ExploreTabId } from './ExploreCityGrid';
 import ContentPanel from './ContentPanel';
 import MiniPlayer from '../../components/overlays/MiniPlayer';
 import NarratorSheet from '../../components/overlays/NarratorSheet';
@@ -25,11 +22,10 @@ import WeakGPSBanner from '../../components/overlays/WeakGPSBanner';
 import OfflineBanner from '../overlays/OfflineBanner';
 import ConnectivityStrip from '../shared/ConnectivityStrip';
 import AppGuideFAB from './AppGuideFAB';
-import FamilySafetyCard from './FamilySafetyCard';
-import { useUpcomingBookings } from '../../hooks/useUpcomingBookings';
 import { experienceSeedData } from '../../lib/experience-seed-data';
-import DayOfExperienceCard from '../experiences/confidence/DayOfExperienceCard';
-import UpcomingExperienceCard from '../experiences/confidence/UpcomingExperienceCard';
+import HomeAlertCard from './HomeAlertCard';
+import TodaysBestPickSlider from './TodaysBestPickSlider';
+import { HOME_ALERTS, getUnreadAlertCount } from '../../lib/home-alerts';
 
 interface HomeScreenProps {
   narrators: Narrator[];
@@ -55,8 +51,6 @@ interface HomeScreenProps {
   onOpenSOS?: () => void;
   onNavigateToExperiencesExplore?: (tab?: 'tours' | 'activities') => void;
   onNavigateToExperienceDetail?: (slug: string) => void;
-  onNavigateToPreExperienceBrief?: (bookingId: string) => void;
-  onNavigateToMeetingPoint?: (bookingId: string) => void;
   forceEmpty?: boolean;
 }
 
@@ -77,16 +71,13 @@ export default function HomeScreen({
   onOpenSOS,
   onNavigateToExperiencesExplore,
   onNavigateToExperienceDetail,
-  onNavigateToPreExperienceBrief,
-  onNavigateToMeetingPoint,
   forceEmpty = false,
 }: HomeScreenProps) {
-  const { daysBefore, tomorrow, today } = useUpcomingBookings();
   const { isOnline } = useConnectivity();
   const location = useLocation();
-  const { stories, isLoading: storiesLoading } = useNearbyStories(location.lat, location.lng);
+  const { stories } = useNearbyStories(location.lat, location.lng);
 
-  const [activeMode, setActiveMode] = useState<QuickMode | null>('nearby');
+  const [activeExploreTab, setActiveExploreTab] = useState<ExploreTabId>('nearby');
   const [narratorSheetOpen, setNarratorSheetOpen] = useState(false);
   const [previewTour, setPreviewTour] = useState<CityPack | null>(null);
   const [unlockStory, setUnlockStory] = useState<Story | null>(null);
@@ -94,35 +85,28 @@ export default function HomeScreen({
   const [showInsufficientBalance, setShowInsufficientBalance] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
 
+  const activeMode: QuickMode | null =
+    activeExploreTab === 'nearby'
+      ? 'nearby'
+      : activeExploreTab === 'city_facts'
+        ? 'quick_facts'
+        : activeExploreTab === 'speak_local'
+          ? 'languages'
+          : null;
   const { content: modeContent } = useModeContent(BENGALURU_CITY_ID, activeMode);
 
   const featuredStory = useMemo(() => {
     return stories.find((s) => s.is_featured) ?? stories[0] ?? null;
   }, [stories]);
 
-  const { access: heroAccess } = useContentAccess('story', featuredStory?.id ?? null);
-
   const hasNearbyStories = !forceEmpty && stories.length > 0;
-  const isCurrentHeroPlaying = player.currentStory?.id === featuredStory?.id;
-
-  const handlePlayHero = useCallback(() => {
-    if (!featuredStory) return;
-    if (isCurrentHeroPlaying) {
-      player.togglePlay();
-      return;
-    }
-    if (heroAccess.is_unlocked) {
-      player.playStory(featuredStory, currentNarrator);
-    } else {
-      console.info('unlock_sheet_shown', {
-        item_type: 'story',
-        item_id: featuredStory.id,
-        cost: STORY_COIN_COST,
-        balance: coinBalance,
-      });
-      setUnlockStory(featuredStory);
-    }
-  }, [featuredStory, isCurrentHeroPlaying, heroAccess, player, currentNarrator, coinBalance]);
+  const bestPickTour = cityPacks[0] ?? null;
+  const bestPickExperience = useMemo(
+    () =>
+      experienceSeedData.find((item) => item.bookableInApp && item.publicationStatus === 'published') ??
+      null,
+    [],
+  );
 
   const handlePlayStory = useCallback((story: Story) => {
     if (player.currentStory?.id === story.id) {
@@ -163,104 +147,39 @@ export default function HomeScreen({
       {location.isWeak && <WeakGPSBanner />}
 
       <div className="flex-1 overflow-y-auto scrollbar-hide pb-32">
-        {!forceEmpty &&
-          today &&
-          onNavigateToPreExperienceBrief &&
-          onNavigateToMeetingPoint && (() => {
-            const exp = experienceSeedData.find((e) => e.id === today.booking.experienceId);
-            if (!exp) return null;
-            return (
-              <DayOfExperienceCard
-                booking={today.booking}
-                experience={exp}
-                onOpenBrief={() => onNavigateToPreExperienceBrief(today.booking.id)}
-                onOpenMeetingPoint={() => onNavigateToMeetingPoint(today.booking.id)}
-              />
-            );
-          })()}
-
-        {!forceEmpty && storiesLoading ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-10 h-10 rounded-full border-2 border-gamana-200 border-t-gamana-500 animate-spin" />
-            <p className="text-sm text-muted mt-3">Finding stories near you...</p>
-          </div>
-        ) : hasNearbyStories ? (
-          <HeroCard
-            story={featuredStory}
-            narrator={currentNarrator}
-            isPlaying={player.isPlaying}
-            isCurrentStory={isCurrentHeroPlaying}
-            onPlay={handlePlayHero}
-            onNarratorTap={() => setNarratorSheetOpen(true)}
-            onTapDetail={() => featuredStory && onNavigateToStory(featuredStory.id)}
-          />
-        ) : (
-          <EmptyState
-            onExploreCities={onNavigateToExploreCities}
-            onSearch={() => onTabChange('search')}
-            onRequestStory={onNavigateToRequestStory}
+        {!forceEmpty && HOME_ALERTS[0] && (
+          <HomeAlertCard
+            alert={HOME_ALERTS[0]}
+            onOpenAlerts={() => onTabChange('alerts')}
           />
         )}
 
-        <RecommendedTours
-          tours={cityPacks}
-          onPreviewTour={setPreviewTour}
-        />
-
-        {!forceEmpty &&
-          tomorrow &&
-          onNavigateToPreExperienceBrief && (() => {
-            const exp = experienceSeedData.find((e) => e.id === tomorrow.booking.experienceId);
-            if (!exp) return null;
-            return (
-              <UpcomingExperienceCard
-                booking={tomorrow.booking}
-                experience={exp}
-                variant="tomorrow"
-                onGetReady={() => onNavigateToPreExperienceBrief(tomorrow.booking.id)}
-              />
-            );
-          })()}
-
-        {!forceEmpty &&
-          daysBefore &&
-          onNavigateToPreExperienceBrief && (() => {
-            const exp = experienceSeedData.find((e) => e.id === daysBefore.booking.experienceId);
-            if (!exp) return null;
-            return (
-              <UpcomingExperienceCard
-                booking={daysBefore.booking}
-                experience={exp}
-                variant="7days"
-                daysUntil={daysBefore.daysUntil}
-                onGetReady={() => onNavigateToPreExperienceBrief(daysBefore.booking.id)}
-              />
-            );
-          })()}
-
-        {onNavigateToExperiencesExplore && onNavigateToExperienceDetail && (
-          <ExperiencesToBookSection
-            onSeeAll={() => onNavigateToExperiencesExplore()}
+        {!forceEmpty && onNavigateToExperienceDetail && (
+          <TodaysBestPickSlider
+            story={hasNearbyStories ? featuredStory : null}
+            tour={bestPickTour}
+            experience={bestPickExperience}
+            onOpenStory={onNavigateToStory}
+            onOpenTour={(tourId) => {
+              const found = cityPacks.find((item) => item.id === tourId);
+              if (found) setPreviewTour(found);
+            }}
             onOpenExperience={onNavigateToExperienceDetail}
-          />
-        )}
-
-        {onNavigateToFamilyTracking && onOpenSOS && (
-          <FamilySafetyCard
-            onNavigateToFamilyTracking={onNavigateToFamilyTracking}
-            onOpenSOS={onOpenSOS}
+            onOpenIntro={() => onNavigateToRequestStory()}
           />
         )}
 
         {!forceEmpty && onNavigateToExperiencesExplore && (
           <ExploreCityGrid
-            activeMode={activeMode}
-            onModeSelect={(mode) => setActiveMode(mode)}
+            activeTab={activeExploreTab}
+            onTabSelect={setActiveExploreTab}
             onNavigateToExperiencesExplore={onNavigateToExperiencesExplore}
+            onNavigateToFamilyTracking={onNavigateToFamilyTracking}
+            onOpenSOS={onOpenSOS}
           />
         )}
 
-        {!forceEmpty && (
+        {!forceEmpty && activeMode && (
           <ContentPanel
             activeMode={activeMode}
             stories={stories}
@@ -271,6 +190,19 @@ export default function HomeScreen({
             onPlayContent={handlePlayContent}
             onTapStoryDetail={(story) => onNavigateToStory(story.id)}
             pinNearbyTitle
+          />
+        )}
+
+        <RecommendedTours
+          tours={cityPacks}
+          onPreviewTour={setPreviewTour}
+          onViewAll={() => onNavigateToExperiencesExplore?.('tours')}
+        />
+
+        {onNavigateToExperiencesExplore && onNavigateToExperienceDetail && (
+          <ExperiencesToBookSection
+            onSeeAll={() => onNavigateToExperiencesExplore()}
+            onOpenExperience={onNavigateToExperienceDetail}
           />
         )}
       </div>
@@ -291,6 +223,7 @@ export default function HomeScreen({
         <BottomTabBar
           activeTab="home"
           onTabChange={onTabChange}
+          unreadAlertsCount={getUnreadAlertCount()}
         />
       </div>
 
@@ -355,7 +288,6 @@ export default function HomeScreen({
         requiredCost={STORY_COIN_COST}
         onNavigateToCoins={onNavigateToCoins}
       />
-
     </div>
   );
 }

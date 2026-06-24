@@ -33,7 +33,7 @@ export default function ExperiencesToBookSection({
       {isLoading ? (
         <div className="flex gap-4 px-4 overflow-hidden">
           {[1, 2].map((i) => (
-            <div key={i} className="flex-none w-[280px] h-64 rounded-2xl bg-gamana-500/10 animate-pulse" />
+            <div key={i} className="flex-none w-[254px] h-64 rounded-2xl bg-gamana-500/10 animate-pulse" />
           ))}
         </div>
       ) : (

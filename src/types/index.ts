@@ -33,6 +33,9 @@ export interface Story {
   image_url: string | null;
   created_at: string;
   distance_meters?: number;
+  linkedBookableExperienceId?: string;
+  linkedBookableExperienceSlug?: string;
+  linkedBookableExperienceLabel?: string;
 }
 
 export interface Narrator {
@@ -232,6 +235,7 @@ export interface SearchResults {
   topics: Topic[];
   narrators: Narrator[];
   cities: City[];
+  experiences: import('./experience').ExperienceListItemView[];
   total: number;
 }
 
@@ -263,10 +267,7 @@ export type AppRoute =
       selectedDate?: string;
       selectedTime?: string | null;
     }
-  | { screen: 'operator_profile'; vendorId: string; operatorName: string }
   | { screen: 'experience_saved' }
-  | { screen: 'booking_timeslot'; flowState: BookingFlowState }
-  | { screen: 'booking_pickup'; flowState: BookingFlowState }
   | { screen: 'booking_questions'; flowState: BookingFlowState }
   | { screen: 'booking_review'; flowState: BookingFlowState; operatorName: string }
   | {
@@ -296,17 +297,8 @@ export type AppRoute =
   | { screen: 'my_bookings' }
   | { screen: 'booking_detail'; bookingId: string }
   | { screen: 'pre_experience_brief'; bookingId: string }
-  | { screen: 'meeting_point'; bookingId: string }
   | { screen: 'experience_completed'; bookingId: string }
-  | { screen: 'rate_review'; bookingId: string }
   | { screen: 'cancel_booking'; bookingId: string }
-  | {
-      screen: 'cancellation_confirmed';
-      bookingId: string;
-      refundAmount: number;
-      cancellationCode: string;
-    }
-  | { screen: 'refund_status'; bookingId: string }
   | { screen: 'notification_preview' };
 
 export type { Experience, ExperienceListItemView } from './experience';

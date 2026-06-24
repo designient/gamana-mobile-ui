@@ -32,38 +32,29 @@ import CreateTourScreen from './components/tour/CreateTourScreen';
 import ExperiencesExploreScreen from './components/experiences/ExperiencesExploreScreen';
 import ExperienceDetailScreen from './components/experiences/ExperienceDetailScreen';
 import BookingWebViewScreen from './components/experiences/BookingWebViewScreen';
-import OperatorProfileScreen from './components/experiences/OperatorProfileScreen';
 import ExperienceSavedScreen from './components/experiences/ExperienceSavedScreen';
-import TimeSlotScreen from './components/experiences/booking/TimeSlotScreen';
-import PickupSelectionScreen from './components/experiences/booking/PickupSelectionScreen';
 import BookingQuestionsScreen from './components/experiences/booking/BookingQuestionsScreen';
 import OrderSummaryScreen from './components/experiences/booking/OrderSummaryScreen';
 import OnRequestStatusScreen from './components/experiences/booking/OnRequestStatusScreen';
 import MyBookingsScreen from './components/experiences/bookings/MyBookingsScreen';
 import BookingDetailScreen from './components/experiences/bookings/BookingDetailScreen';
 import PreExperienceBriefScreen from './components/experiences/confidence/PreExperienceBriefScreen';
-import MeetingPointScreen from './components/experiences/confidence/MeetingPointScreen';
 import BookingConfirmedScreen from './components/experiences/booking/BookingConfirmedScreen';
 import BookingFailedScreen from './components/experiences/booking/BookingFailedScreen';
 import ExperienceCompletedScreen from './components/experiences/post/ExperienceCompletedScreen';
-import RateReviewScreen from './components/experiences/post/RateReviewScreen';
 import CancelBookingScreen from './components/experiences/bookings/CancelBookingScreen';
-import CancellationConfirmedScreen from './components/experiences/bookings/CancellationConfirmedScreen';
-import RefundStatusScreen from './components/experiences/bookings/RefundStatusScreen';
 import NotificationPreviewScreen from './components/notifications/NotificationPreviewScreen';
-import {
-  calculateRefundAmount,
-  generateCancellationCode,
-} from './lib/experience-cancellation';
 import { getExperienceBySlugSync, getBookingLink } from './lib/experience-mock-api';
 import { experienceSeedData } from './lib/experience-seed-data';
-import { MOCK_BOOKINGS } from './lib/experience-bookings-mock';
+import {
+  MOCK_BOOKINGS,
+  submitBookingRating,
+  deferBookingRating,
+} from './lib/experience-bookings-mock';
 import { resolveOperatorName } from './lib/experience-seed-helpers';
 import {
   generateConfirmationCode,
   isOnRequestExperience,
-  needsPickupStep,
-  needsTimeSlotStep,
   type BookingFlowState,
 } from './lib/experience-booking-flow';
 import SOSSheet from './components/family/SOSSheet';
@@ -80,6 +71,7 @@ function AppInner() {
     if (path === '/empty') return { screen: 'empty' };
     return { screen: 'home' };
   });
+  const [bookingDetailRefreshKey, setBookingDetailRefreshKey] = useState(0);
   const { narrators } = useNarrators();
   const player = useAudioPlayer();
   const userProfile = useUserProfile();
@@ -211,13 +203,6 @@ function AppInner() {
     setRoute({ screen: 'experience_detail', slug });
   }, []);
 
-  const handleNavigateToOperatorProfile = useCallback(
-    (vendorId: string, operatorName: string) => {
-      setRoute({ screen: 'operator_profile', vendorId, operatorName });
-    },
-    [],
-  );
-
   const handleNavigateToExperienceSaved = useCallback(() => {
     setRoute({ screen: 'experience_saved' });
   }, []);
@@ -234,24 +219,12 @@ function AppInner() {
     setRoute({ screen: 'pre_experience_brief', bookingId });
   }, []);
 
-  const handleNavigateToMeetingPoint = useCallback((bookingId: string) => {
-    setRoute({ screen: 'meeting_point', bookingId });
-  }, []);
-
   const handleNavigateToExperienceCompleted = useCallback((bookingId: string) => {
     setRoute({ screen: 'experience_completed', bookingId });
   }, []);
 
-  const handleNavigateToRateReview = useCallback((bookingId: string) => {
-    setRoute({ screen: 'rate_review', bookingId });
-  }, []);
-
   const handleNavigateToCancelBooking = useCallback((bookingId: string) => {
     setRoute({ screen: 'cancel_booking', bookingId });
-  }, []);
-
-  const handleNavigateToRefundStatus = useCallback((bookingId: string) => {
-    setRoute({ screen: 'refund_status', bookingId });
   }, []);
 
   const handleViewNotificationDesigns = useCallback(() => {
@@ -261,6 +234,10 @@ function AppInner() {
   const handleOpenBooking = useCallback(
     (bookingId: string) => {
       const booking = MOCK_BOOKINGS.find((b) => b.id === bookingId);
+      if (booking?.status === 'rejected' || booking?.status === 'expired') {
+        handleOpenBookingDetail(bookingId);
+        return;
+      }
       if (booking?.status === 'completed' && bookingId === 'bk-003') {
         handleNavigateToExperienceCompleted(bookingId);
         return;
@@ -293,36 +270,6 @@ function AppInner() {
   );
 
   const handleBookingFlowContinue = useCallback((flowState: BookingFlowState) => {
-    const exp = getExperienceBySlugSync(flowState.slug);
-    if (!exp) return;
-
-    if (isOnRequestExperience(exp)) {
-      setRoute({ screen: 'booking_questions', flowState });
-      return;
-    }
-    if (needsTimeSlotStep(exp)) {
-      setRoute({ screen: 'booking_timeslot', flowState });
-      return;
-    }
-    if (needsPickupStep(exp)) {
-      setRoute({ screen: 'booking_pickup', flowState });
-      return;
-    }
-    setRoute({ screen: 'booking_questions', flowState });
-  }, []);
-
-  const handleBookingTimeContinue = useCallback((flowState: BookingFlowState) => {
-    const exp = getExperienceBySlugSync(flowState.slug);
-    if (!exp) return;
-
-    if (needsPickupStep(exp)) {
-      setRoute({ screen: 'booking_pickup', flowState });
-    } else {
-      setRoute({ screen: 'booking_questions', flowState });
-    }
-  }, []);
-
-  const handleBookingPickupContinue = useCallback((flowState: BookingFlowState) => {
     setRoute({ screen: 'booking_questions', flowState });
   }, []);
 
@@ -466,6 +413,7 @@ function AppInner() {
             onNavigateToStory={handleNavigateToStory}
             onNavigateToCoins={handleNavigateToCoins}
             onBalanceChange={userProfile.updateBalance}
+            onNavigateToExperience={handleNavigateToExperienceDetail}
           />
         );
       case 'search':
@@ -474,6 +422,8 @@ function AppInner() {
             player={player}
             currentNarrator={currentNarrator}
             onNavigateToStory={handleNavigateToStory}
+            onNavigateToExperienceDetail={handleNavigateToExperienceDetail}
+            onNavigateToExperiencesExplore={handleNavigateToExperiencesExplore}
             onTabChange={handleTabChange}
           />
         );
@@ -541,7 +491,7 @@ function AppInner() {
             }}
             onOpenBooking={handleOpenBooking}
             onExploreExperiences={handleNavigateToExperiencesExplore}
-            onRateExperience={(bookingId) => handleNavigateToRateReview(bookingId)}
+            onRateExperience={handleNavigateToExperienceCompleted}
           />
         );
       case 'my_bookings':
@@ -550,7 +500,7 @@ function AppInner() {
             onBack={handleNavigateToProfile}
             onOpenBooking={handleOpenBooking}
             onExplore={handleNavigateToExperiencesExplore}
-            onRateExperience={(bookingId) => handleNavigateToRateReview(bookingId)}
+            onRateExperience={handleNavigateToExperienceCompleted}
           />
         );
       case 'booking_detail': {
@@ -560,6 +510,7 @@ function AppInner() {
           : null;
         return (
           <BookingDetailScreen
+            key={`${route.bookingId}-${bookingDetailRefreshKey}`}
             bookingId={route.bookingId}
             onBack={() => setRoute({ screen: 'profile_collection', tab: 'bookings' })}
             onNavigateToStory={
@@ -570,68 +521,27 @@ function AppInner() {
             }
             onViewBrief={() => {
               if (detailBooking) {
-                setRoute({ screen: 'experience_detail', slug: detailBooking.slug });
-              }
-            }}
-            onViewMeetingPoint={() => {
-              if (detailBooking) {
-                setRoute({ screen: 'experience_detail', slug: detailBooking.slug });
+                setRoute({ screen: 'pre_experience_brief', bookingId: route.bookingId });
               }
             }}
             onNavigateToCancelBooking={() =>
               handleNavigateToCancelBooking(route.bookingId)
             }
-            onNavigateToRateReview={handleNavigateToRateReview}
-            onViewRefundStatus={
-              detailBooking?.status === 'cancelled'
-                ? () => handleNavigateToRefundStatus(route.bookingId)
-                : undefined
-            }
+            onNavigateToCelebrate={handleNavigateToExperienceCompleted}
+            onOpenExperience={handleNavigateToExperienceDetail}
+            onStartBooking={handleBookingFlowContinue}
             onExplore={handleNavigateToExperiencesExplore}
           />
         );
       }
-      case 'cancel_booking': {
-        const cancelBooking = MOCK_BOOKINGS.find((b) => b.id === route.bookingId);
+      case 'cancel_booking':
         return (
           <CancelBookingScreen
             bookingId={route.bookingId}
             onBack={() =>
               setRoute({ screen: 'booking_detail', bookingId: route.bookingId })
             }
-            onConfirm={() => {
-              if (!cancelBooking) return;
-              const refundAmount = calculateRefundAmount(cancelBooking);
-              setRoute({
-                screen: 'cancellation_confirmed',
-                bookingId: route.bookingId,
-                refundAmount,
-                cancellationCode: generateCancellationCode(),
-              });
-            }}
-          />
-        );
-      }
-      case 'cancellation_confirmed': {
-        const confirmedBooking = MOCK_BOOKINGS.find((b) => b.id === route.bookingId);
-        return (
-          <CancellationConfirmedScreen
-            bookingId={route.bookingId}
-            refundAmount={route.refundAmount}
-            operatorName={confirmedBooking?.operatorName ?? 'Operator'}
-            cancellationCode={route.cancellationCode}
-            onBack={handleBack}
-            onOpenExperience={handleNavigateToExperienceDetail}
-          />
-        );
-      }
-      case 'refund_status':
-        return (
-          <RefundStatusScreen
-            bookingId={route.bookingId}
-            onBack={() =>
-              setRoute({ screen: 'booking_detail', bookingId: route.bookingId })
-            }
+            onCancelled={() => setBookingDetailRefreshKey((k) => k + 1)}
           />
         );
       case 'experience_completed': {
@@ -642,34 +552,26 @@ function AppInner() {
         return (
           <ExperienceCompletedScreen
             bookingId={route.bookingId}
-            onBack={handleBack}
+            onBack={() =>
+              setRoute({ screen: 'booking_detail', bookingId: route.bookingId })
+            }
             onNavigateToStory={
               completedExp?.linkedStoryId
                 ? () =>
                     setRoute({ screen: 'story_detail', storyId: completedExp.linkedStoryId! })
                 : undefined
             }
-            onRateExperience={() => handleNavigateToRateReview(route.bookingId)}
+            onSubmitRating={(rating, text, aspects) => {
+              submitBookingRating(route.bookingId, rating, text, aspects);
+              setBookingDetailRefreshKey((k) => k + 1);
+            }}
+            onDeferRating={() => {
+              deferBookingRating(route.bookingId);
+              setBookingDetailRefreshKey((k) => k + 1);
+            }}
           />
         );
       }
-      case 'rate_review':
-        return (
-          <RateReviewScreen
-            bookingId={route.bookingId}
-            onBack={() => {
-              const booking = MOCK_BOOKINGS.find((b) => b.id === route.bookingId);
-              if (booking?.status === 'completed') {
-                setRoute({ screen: 'experience_completed', bookingId: route.bookingId });
-              } else {
-                setRoute({ screen: 'booking_detail', bookingId: route.bookingId });
-              }
-            }}
-            onSubmit={() =>
-              setRoute({ screen: 'profile_collection', tab: 'bookings' })
-            }
-          />
-        );
       case 'alerts':
         return (
           <AlertsScreen
@@ -754,74 +656,26 @@ function AppInner() {
             onBack={handleBack}
             onNavigateToStory={handleNavigateToStory}
             onBookingFlowContinue={handleBookingFlowContinue}
+            onOpenExperience={handleNavigateToExperienceDetail}
+            onBrowseAllExperiences={handleNavigateToExperiencesExplore}
           />
         );
-      case 'booking_timeslot': {
-        const timeslotExp = getExperienceBySlugSync(route.flowState.slug);
-        if (!timeslotExp) return null;
-        return (
-          <TimeSlotScreen
-            experience={timeslotExp}
-            selectedDate={route.flowState.selectedDate}
-            onBack={() =>
-              setRoute({ screen: 'experience_detail', slug: route.flowState.slug })
-            }
-            onContinue={(time, slotId) =>
-              handleBookingTimeContinue({
-                ...route.flowState,
-                selectedTime: time,
-                selectedSlotId: slotId,
-              })
-            }
-          />
-        );
-      }
-      case 'booking_pickup': {
-        const pickupExp = getExperienceBySlugSync(route.flowState.slug);
-        if (!pickupExp) return null;
-        return (
-          <PickupSelectionScreen
-            experience={pickupExp}
-            onBack={() => {
-              if (needsTimeSlotStep(pickupExp)) {
-                setRoute({ screen: 'booking_timeslot', flowState: route.flowState });
-              } else {
-                setRoute({ screen: 'experience_detail', slug: route.flowState.slug });
-              }
-            }}
-            onContinue={(pickupLocationId) =>
-              handleBookingPickupContinue({
-                ...route.flowState,
-                pickupLocationId,
-                pickupMode: pickupLocationId ? 'pickup' : 'meet',
-              })
-            }
-          />
-        );
-      }
       case 'booking_questions': {
         const questionsExp = getExperienceBySlugSync(route.flowState.slug);
         if (!questionsExp) return null;
         return (
           <BookingQuestionsScreen
             experience={questionsExp}
-            onBack={() => {
-              if (isOnRequestExperience(questionsExp)) {
-                setRoute({ screen: 'experience_detail', slug: route.flowState.slug });
-                return;
-              }
-              if (needsPickupStep(questionsExp)) {
-                setRoute({ screen: 'booking_pickup', flowState: route.flowState });
-                return;
-              }
-              if (needsTimeSlotStep(questionsExp)) {
-                setRoute({ screen: 'booking_timeslot', flowState: route.flowState });
-                return;
-              }
-              setRoute({ screen: 'experience_detail', slug: route.flowState.slug });
-            }}
-            onContinue={(answers) =>
-              handleBookingQuestionsContinue({ ...route.flowState, answers })
+            onBack={() =>
+              setRoute({ screen: 'experience_detail', slug: route.flowState.slug })
+            }
+            onContinue={({ answers, pickupLocationId, pickupMode }) =>
+              handleBookingQuestionsContinue({
+                ...route.flowState,
+                answers,
+                pickupLocationId,
+                pickupMode,
+              })
             }
           />
         );
@@ -871,11 +725,9 @@ function AppInner() {
             onRetryBooking={() =>
               setRoute({ screen: 'experience_detail', slug: route.slug })
             }
-            onBrowseAlternatives={() => handleNavigateToExperiencesExplore()}
             onCancelRequest={() =>
               setRoute({ screen: 'experience_detail', slug: route.slug })
             }
-            onOpenExperience={handleNavigateToExperienceDetail}
           />
         );
       }
@@ -965,16 +817,6 @@ function AppInner() {
           />
         );
       }
-      case 'operator_profile':
-        return (
-          <OperatorProfileScreen
-            vendorId={route.vendorId}
-            operatorName={route.operatorName}
-            onBack={handleBack}
-            onOpenExperience={handleNavigateToExperienceDetail}
-            onBrowseAll={() => handleNavigateToExperiencesExplore()}
-          />
-        );
       case 'experience_saved':
         return (
           <ExperienceSavedScreen
@@ -1003,8 +845,6 @@ function AppInner() {
             onOpenSOS={handleOpenSOS}
             onNavigateToExperiencesExplore={handleNavigateToExperiencesExplore}
             onNavigateToExperienceDetail={handleNavigateToExperienceDetail}
-            onNavigateToPreExperienceBrief={handleNavigateToPreExperienceBrief}
-            onNavigateToMeetingPoint={handleNavigateToMeetingPoint}
             forceEmpty
           />
         );
@@ -1013,9 +853,6 @@ function AppInner() {
           <PreExperienceBriefScreen
             bookingId={route.bookingId}
             onBack={handleBack}
-            onOpenMeetingPoint={() =>
-              handleNavigateToMeetingPoint(route.bookingId)
-            }
             onNavigateToStory={(() => {
               const booking = MOCK_BOOKINGS.find((b) => b.id === route.bookingId);
               const exp = booking
@@ -1026,15 +863,6 @@ function AppInner() {
                     setRoute({ screen: 'story_detail', storyId: exp.linkedStoryId! })
                 : undefined;
             })()}
-          />
-        );
-      case 'meeting_point':
-        return (
-          <MeetingPointScreen
-            bookingId={route.bookingId}
-            onBack={() =>
-              setRoute({ screen: 'pre_experience_brief', bookingId: route.bookingId })
-            }
           />
         );
       default:
@@ -1057,8 +885,6 @@ function AppInner() {
             onOpenSOS={handleOpenSOS}
             onNavigateToExperiencesExplore={handleNavigateToExperiencesExplore}
             onNavigateToExperienceDetail={handleNavigateToExperienceDetail}
-            onNavigateToPreExperienceBrief={handleNavigateToPreExperienceBrief}
-            onNavigateToMeetingPoint={handleNavigateToMeetingPoint}
           />
         );
     }

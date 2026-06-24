@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { experienceSeedData } from '../../../lib/experience-seed-data';
-import { MOCK_BOOKINGS } from '../../../lib/experience-bookings-mock';
+import { MOCK_BOOKINGS, cancelBooking } from '../../../lib/experience-bookings-mock';
 import { formatDisplayDate } from '../../../lib/experience-booking-flow';
 import {
   calculateRefundAmount,
@@ -13,7 +13,7 @@ import StatusBar from '../../layout/StatusBar';
 interface CancelBookingScreenProps {
   bookingId: string;
   onBack: () => void;
-  onConfirm: (reason?: string) => void;
+  onCancelled: () => void;
 }
 
 const REASONS = [
@@ -49,7 +49,7 @@ const TIER_STYLES = {
 export default function CancelBookingScreen({
   bookingId,
   onBack,
-  onConfirm,
+  onCancelled,
 }: CancelBookingScreenProps) {
   const booking = MOCK_BOOKINGS.find((b) => b.id === bookingId);
   const experience = booking
@@ -58,6 +58,17 @@ export default function CancelBookingScreen({
 
   const [selectedReason, setSelectedReason] = useState<Reason | null>(null);
   const [otherReason, setOtherReason] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => {
+      setToast(null);
+      onCancelled();
+      onBack();
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [toast, onBack, onCancelled]);
 
   if (!booking || !experience || booking.status !== 'confirmed') {
     return (
@@ -84,7 +95,10 @@ export default function CancelBookingScreen({
       selectedReason === 'Other' && otherReason.trim()
         ? otherReason.trim()
         : selectedReason;
-    onConfirm(reason);
+    const updated = cancelBooking(bookingId, reason);
+    setToast(
+      `Booking cancelled · ₹${(updated.refundAmount ?? 0).toLocaleString('en-IN')} refund initiated`,
+    );
   }
 
   return (
@@ -188,6 +202,14 @@ export default function CancelBookingScreen({
             Yes, Cancel Booking
           </button>
         </div>
+      </div>
+
+      <div
+        className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-gamana-900 text-white rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 max-w-[90vw] text-center ${
+          toast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+        }`}
+      >
+        {toast}
       </div>
     </div>
   );

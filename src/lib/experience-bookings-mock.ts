@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
+import { calculateRefundAmount } from './experience-cancellation';
 
 export type BookingStatus =
   | 'confirmed'
   | 'on_request_pending'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'rejected'
+  | 'expired';
 
 export interface BookingRecord {
   id: string;
@@ -22,6 +25,11 @@ export interface BookingRecord {
   completedAt?: string;
   cancelledAt?: string;
   refundAmount?: number;
+  cancellationReason?: string;
+  rating?: number;
+  ratingDeferred?: boolean;
+  reviewText?: string;
+  reviewAspects?: string[];
 }
 
 export const MOCK_BOOKINGS: BookingRecord[] = [
@@ -85,6 +93,39 @@ export const MOCK_BOOKINGS: BookingRecord[] = [
     refundAmount: 1998,
   },
 ];
+
+export function cancelBooking(bookingId: string, reason?: string): BookingRecord {
+  const booking = MOCK_BOOKINGS.find((b) => b.id === bookingId);
+  if (!booking) throw new Error('Booking not found');
+  const refundAmount = calculateRefundAmount(booking);
+  booking.status = 'cancelled';
+  booking.cancelledAt = new Date().toISOString();
+  booking.refundAmount = refundAmount;
+  if (reason) booking.cancellationReason = reason;
+  return booking;
+}
+
+export function submitBookingRating(
+  bookingId: string,
+  rating: number,
+  text: string,
+  aspects: string[],
+): BookingRecord {
+  const booking = MOCK_BOOKINGS.find((b) => b.id === bookingId);
+  if (!booking) throw new Error('Booking not found');
+  booking.rating = rating;
+  booking.reviewText = text;
+  booking.reviewAspects = aspects;
+  booking.ratingDeferred = false;
+  return booking;
+}
+
+export function deferBookingRating(bookingId: string): BookingRecord {
+  const booking = MOCK_BOOKINGS.find((b) => b.id === bookingId);
+  if (!booking) throw new Error('Booking not found');
+  booking.ratingDeferred = true;
+  return booking;
+}
 
 const UPCOMING_STATUSES: BookingStatus[] = ['confirmed', 'on_request_pending'];
 const PAST_STATUSES: BookingStatus[] = ['completed', 'cancelled'];

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowLeft, BookOpen, Shirt, Backpack, AlertTriangle, Utensils, MapPin } from 'lucide-react';
 import { experienceSeedData } from '../../../lib/experience-seed-data';
 import { MOCK_BOOKINGS } from '../../../lib/experience-bookings-mock';
@@ -12,11 +13,11 @@ import {
   shouldShowDietaryNotes,
 } from '../../../lib/experience-brief-content';
 import StatusBar from '../../layout/StatusBar';
+import MeetingPointBottomSheet from './MeetingPointBottomSheet';
 
 interface PreExperienceBriefScreenProps {
   bookingId: string;
   onBack: () => void;
-  onOpenMeetingPoint: () => void;
   onNavigateToStory?: () => void;
 }
 
@@ -36,9 +37,9 @@ function BriefList({ items }: { items: string[] }) {
 export default function PreExperienceBriefScreen({
   bookingId,
   onBack,
-  onOpenMeetingPoint,
   onNavigateToStory,
 }: PreExperienceBriefScreenProps) {
+  const [meetingPointOpen, setMeetingPointOpen] = useState(false);
   const booking = MOCK_BOOKINGS.find((b) => b.id === bookingId);
   const experience = booking
     ? experienceSeedData.find((e) => e.id === booking.experienceId) ?? null
@@ -81,7 +82,7 @@ export default function PreExperienceBriefScreen({
     'Your guide will share the exact meeting point in a confirmation message.';
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-canvas">
+    <div className="relative flex flex-col h-full min-h-0 bg-canvas">
       <StatusBar />
 
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gamana-100">
@@ -152,7 +153,7 @@ export default function PreExperienceBriefScreen({
           <p className="text-sm text-muted leading-relaxed">{meetingText}</p>
           <button
             type="button"
-            onClick={onOpenMeetingPoint}
+            onClick={() => setMeetingPointOpen(true)}
             className="mt-3 text-sm font-semibold text-gamana-600 underline"
           >
             Tap to open map
@@ -175,6 +176,12 @@ export default function PreExperienceBriefScreen({
           </button>
         )}
       </div>
+
+      <MeetingPointBottomSheet
+        isOpen={meetingPointOpen}
+        bookingId={bookingId}
+        onClose={() => setMeetingPointOpen(false)}
+      />
     </div>
   );
 }

@@ -2,8 +2,15 @@ import { useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Search, X, Clock, ArrowRight, MapPin, Mic, Hash,
   Globe, MessageSquarePlus, Flame, Landmark, TreePine, Store,
+  Compass,
 } from 'lucide-react';
 import type { Story, Narrator, Topic, City } from '../../types';
+import type { ExperienceListItemView } from '../../types/experience';
+import {
+  InlineFormatVibePills,
+  ExperienceMetaLine,
+  MicroBadges,
+} from '../experiences/ExperienceCardMeta';
 import { useSearch } from '../../hooks/useSearch';
 import { useOrgContext } from '../../hooks/useOrgContext';
 import { getCities, getTopics } from '../../lib/localDb';
@@ -142,6 +149,50 @@ function CityRow({ city, onTap }: { city: City; onTap: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
+// Compact row for experiences
+// ---------------------------------------------------------------------------
+function ExperienceRow({
+  item,
+  onTap,
+}: {
+  item: ExperienceListItemView;
+  onTap: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      className="flex items-center gap-3 p-2.5 rounded-2xl bg-surface shadow-card hover:shadow-elevated transition-all w-full text-left"
+    >
+      <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-gamana-50">
+        {item.imageUrl ? (
+          <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Compass size={16} className="text-gamana-300" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <InlineFormatVibePills item={item} />
+        <h4 className="text-[13px] font-medium text-heading truncate">{item.title}</h4>
+        <p className="text-[11px] text-muted truncate mt-0.5">
+          {item.cityLabel}
+          {item.localityLabel ? ` · ${item.localityLabel}` : ''}
+        </p>
+        <div className="mt-1">
+          <ExperienceMetaLine item={item} />
+        </div>
+        <div className="mt-1.5">
+          <MicroBadges item={item} />
+        </div>
+      </div>
+      <ArrowRight size={14} className="text-faint flex-shrink-0" />
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Section header
 // ---------------------------------------------------------------------------
 function SectionHeader({ label, count }: { label: string; count: number }) {
@@ -166,6 +217,8 @@ interface SearchScreenProps {
   };
   currentNarrator: Narrator | null;
   onNavigateToStory: (storyId: string) => void;
+  onNavigateToExperienceDetail?: (slug: string) => void;
+  onNavigateToExperiencesExplore?: () => void;
   onTabChange: (tab: 'home' | 'library' | 'search' | 'profile' | 'alerts') => void;
 }
 
@@ -173,6 +226,8 @@ export default function SearchScreen({
   player,
   currentNarrator,
   onNavigateToStory,
+  onNavigateToExperienceDetail,
+  onNavigateToExperiencesExplore,
   onTabChange,
 }: SearchScreenProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -331,11 +386,30 @@ export default function SearchScreen({
           <Search size={28} className="text-faint" />
         </div>
         <h3 className="text-base font-semibold text-heading mb-1">No results for "{query}"</h3>
-        <p className="text-sm text-muted leading-relaxed mb-6 max-w-[260px] mx-auto">
+        <p className="text-sm text-muted leading-relaxed mb-2 max-w-[260px] mx-auto">
           We couldn't find anything matching that. Try a different term or explore below.
+        </p>
+        <p className="text-xs text-muted mb-6 max-w-[280px] mx-auto">
+          No bookable experiences matched either — try &quot;heritage&quot;, &quot;food&quot;, or &quot;temple&quot;.
         </p>
 
         <div className="space-y-2 text-left">
+          {onNavigateToExperiencesExplore && (
+            <button
+              type="button"
+              onClick={onNavigateToExperiencesExplore}
+              className="flex items-center gap-3 w-full p-3.5 rounded-2xl bg-gamana-500/8 border border-gamana-200 shadow-card hover:shadow-elevated transition-all"
+            >
+              <div className="w-9 h-9 rounded-xl bg-gamana-500/15 flex items-center justify-center flex-shrink-0">
+                <Compass size={16} className="text-gamana-500" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <h4 className="text-sm font-medium text-heading">Browse bookable experiences</h4>
+                <p className="text-[11px] text-muted">Tours and activities in Bengaluru</p>
+              </div>
+              <ArrowRight size={14} className="text-faint" />
+            </button>
+          )}
           <button
             onClick={() => { setQuery(''); }}
             className="flex items-center gap-3 w-full p-3.5 rounded-2xl bg-surface shadow-card hover:shadow-elevated transition-all"
@@ -386,13 +460,32 @@ export default function SearchScreen({
   // Grouped results
   // ------------------------------------------------------------------
   function renderResults() {
-    const { stories, topics, narrators, cities, total } = filteredResults;
+    const { stories, topics, narrators, cities, experiences, total } = filteredResults;
 
     return (
       <div className="px-4 pt-3 pb-4">
         <p className="text-[11px] text-muted font-medium mb-1">
           {total} {total === 1 ? 'result' : 'results'}
         </p>
+
+        {/* Experiences */}
+        {experiences.length > 0 && onNavigateToExperienceDetail && (
+          <div>
+            <SectionHeader label="Experiences" count={experiences.length} />
+            <div className="space-y-2">
+              {experiences.map((item) => (
+                <ExperienceRow
+                  key={item.id}
+                  item={item}
+                  onTap={() => {
+                    commitSearch(query);
+                    onNavigateToExperienceDetail(item.slug);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Stories */}
         {stories.length > 0 && (
@@ -497,7 +590,7 @@ export default function SearchScreen({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') commitSearch(query); }}
-              placeholder="Stories, places, topics, narrators…"
+              placeholder="Stories, experiences, places, topics…"
               className="flex-1 bg-transparent text-sm text-heading placeholder:text-muted outline-none"
             />
             {hasQuery && (

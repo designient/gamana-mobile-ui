@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Clock, X, Check } from 'lucide-react';
+import { Clock, Check } from 'lucide-react';
 import type { Experience } from '../../../types/experience';
-import { experienceSeedData } from '../../../lib/experience-seed-data';
-import { toListItemView } from '../../../lib/experience-mappers';
 import { formatDisplayDate } from '../../../lib/experience-booking-flow';
 import StatusBar from '../../layout/StatusBar';
 import BookingConfirmedScreen from './BookingConfirmedScreen';
 
-export type OnRequestStatus = 'pending' | 'confirmed' | 'rejected' | 'expired';
+export type OnRequestStatus = 'pending' | 'confirmed';
 
 interface OnRequestStatusScreenProps {
   status: OnRequestStatus;
@@ -21,9 +19,7 @@ interface OnRequestStatusScreenProps {
   onViewBooking: () => void;
   onNavigateToStory?: () => void;
   onRetryBooking: () => void;
-  onBrowseAlternatives: () => void;
   onCancelRequest: () => void;
-  onOpenExperience?: (slug: string) => void;
 }
 
 function getOperatorDeadline(selectedDate: string): string {
@@ -70,7 +66,7 @@ function DemoToggle({
   status: OnRequestStatus;
   onChange: (s: OnRequestStatus) => void;
 }) {
-  const options: OnRequestStatus[] = ['pending', 'confirmed', 'rejected', 'expired'];
+  const options: OnRequestStatus[] = ['pending', 'confirmed'];
   return (
     <div className="flex-shrink-0 px-4 py-3 opacity-40">
       <p className="text-xs text-muted text-center">
@@ -106,29 +102,13 @@ export default function OnRequestStatusScreen({
   onViewBooking,
   onNavigateToStory,
   onRetryBooking,
-  onBrowseAlternatives,
   onCancelRequest,
-  onOpenExperience,
 }: OnRequestStatusScreenProps) {
   const [status, setStatus] = useState<OnRequestStatus>(initialStatus);
 
   useEffect(() => {
     setStatus(initialStatus);
   }, [initialStatus]);
-
-  const alternatives =
-    experience != null
-      ? experienceSeedData
-          .filter(
-            (e) =>
-              e.category === experience.category &&
-              e.id !== experience.id &&
-              e.publicationStatus === 'published' &&
-              e.bookableInApp,
-          )
-          .slice(0, 3)
-          .map(toListItemView)
-      : [];
 
   if (status === 'confirmed') {
     return (
@@ -202,104 +182,6 @@ export default function OnRequestStatusScreen({
                 type="button"
                 onClick={onBack}
                 className="block w-full mt-4 text-sm font-semibold text-gamana-600 underline"
-              >
-                Back to Home
-              </button>
-            </>
-          )}
-
-          {status === 'rejected' && (
-            <>
-              <div className="w-16 h-16 rounded-full bg-rose-50 border-2 border-rose-200 flex items-center justify-center mx-auto mb-4">
-                <X size={32} className="text-rose-600" strokeWidth={2.5} />
-              </div>
-              <h1 className="text-xl font-bold text-heading">Request Declined</h1>
-              <p className="text-sm text-muted mt-2 leading-relaxed">
-                {operatorName} couldn&apos;t confirm your requested date.
-              </p>
-
-              <button
-                type="button"
-                onClick={onRetryBooking}
-                className="w-full mt-6 py-3.5 rounded-xl bg-gamana-500 text-white font-bold text-sm"
-              >
-                Request a different date
-              </button>
-
-              {alternatives.length > 0 && (
-                <div className="mt-8 text-left">
-                  <p className="text-xs font-semibold text-heading mb-3">Similar experiences</p>
-                  <div className="space-y-2">
-                    {alternatives.map((alt) => (
-                      <button
-                        key={alt.id}
-                        type="button"
-                        onClick={() =>
-                          onOpenExperience
-                            ? onOpenExperience(alt.slug)
-                            : onBrowseAlternatives()
-                        }
-                        className="w-full flex gap-3 p-2.5 rounded-xl border border-gamana-100 bg-surface text-left hover:bg-gamana-500/5 transition-colors"
-                      >
-                        {alt.imageUrl ? (
-                          <img
-                            src={alt.imageUrl}
-                            alt={alt.title}
-                            className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-14 h-14 rounded-lg bg-gamana-100 flex-shrink-0" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-heading line-clamp-2">
-                            {alt.title}
-                          </p>
-                          {alt.priceLabel && (
-                            <p className="text-[10px] text-gamana-600 font-medium mt-0.5">
-                              {alt.priceLabel}
-                            </p>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={onBack}
-                className="mt-6 text-sm font-semibold text-gamana-600 underline"
-              >
-                Back to Home
-              </button>
-            </>
-          )}
-
-          {status === 'expired' && (
-            <>
-              <div className="w-16 h-16 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center mx-auto mb-4">
-                <Clock size={32} className="text-slate-400" />
-              </div>
-              <h1 className="text-xl font-bold text-heading">Request Timed Out</h1>
-              <p className="text-sm text-muted mt-2 leading-relaxed">
-                This request was automatically cancelled after 24 hours without a response.
-              </p>
-              <p className="text-xs text-muted mt-3 leading-relaxed">
-                No charge was made. Any hold on your payment method has been released.
-              </p>
-
-              <button
-                type="button"
-                onClick={onBrowseAlternatives}
-                className="w-full mt-6 py-3.5 rounded-xl bg-gamana-500 text-white font-bold text-sm"
-              >
-                Browse similar
-              </button>
-              <button
-                type="button"
-                onClick={onBack}
-                className="mt-4 text-sm font-semibold text-gamana-600 underline"
               >
                 Back to Home
               </button>

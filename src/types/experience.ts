@@ -15,6 +15,30 @@ export type ExperienceSort =
 
 export type ExperienceGroupType = 'private' | 'small_group' | 'shared';
 
+export type ExperienceFormat =
+  | 'walking_tour'
+  | 'food_drink'
+  | 'attraction'
+  | 'day_trip'
+  | 'workshop'
+  | 'nature_wildlife'
+  | 'cruise_boat'
+  | 'adventure'
+  | 'cultural_show'
+  | 'social_nightlife';
+
+export type VibeTag =
+  | 'chill'
+  | 'social'
+  | 'active'
+  | 'deep_dive'
+  | 'date_worthy'
+  | 'hidden_gem'
+  | 'iconic'
+  | 'morning'
+  | 'sunset'
+  | 'solo_friendly';
+
 export interface ItineraryStop {
   id: string;
   title: string;
@@ -108,6 +132,13 @@ export interface Experience {
   rawCategory?: string;
   rawAttributes?: string[];
 
+  experienceFormat?: ExperienceFormat;
+  vibeTag?: VibeTag;
+  groupSizeMax?: number;
+  isPrivate?: boolean;
+  bookingsThisWeek?: number;
+  freeCancellation?: boolean;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -143,6 +174,13 @@ export interface ExperienceListItemView {
   localityLabel?: string;
   detailsLine?: string;
   promoBadge?: ExperiencePromoBadge;
+  experienceFormat: ExperienceFormat;
+  vibeTag: VibeTag;
+  groupSizeMax: number;
+  isPrivate: boolean;
+  bookingsThisWeek: number;
+  freeCancellation: boolean;
+  instantConfirmation?: boolean;
 }
 
 export interface ExperienceFilters {
@@ -155,9 +193,12 @@ export interface ExperienceFilters {
   durationMax?: number;
   pickupAvailable?: boolean;
   instantConfirmation?: boolean;
+  onRequest?: boolean;
   language?: string;
   minAge?: number;
   ratingMin?: number;
+  availableTomorrow?: boolean;
+  timeOfDay?: 'morning' | 'afternoon' | 'evening' | null;
 }
 
 export interface ExperienceFilterMeta {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   BookOpen,
@@ -8,21 +8,30 @@ import {
   MapPin,
   Users,
   Star,
+  X,
 } from 'lucide-react';
+import type { Experience } from '../../../types/experience';
 import { experienceSeedData } from '../../../lib/experience-seed-data';
+import { toListItemView } from '../../../lib/experience-mappers';
 import { useMockBookings } from '../../../lib/experience-bookings-mock';
-import { formatDisplayDate } from '../../../lib/experience-booking-flow';
+import {
+  formatDisplayDate,
+  type BookingFlowState,
+} from '../../../lib/experience-booking-flow';
 import StatusBar from '../../layout/StatusBar';
+import RefundStepper from './RefundStepper';
+import DatePaxSheet from '../booking/DatePaxSheet';
+import MeetingPointBottomSheet from '../confidence/MeetingPointBottomSheet';
 
 interface BookingDetailScreenProps {
   bookingId: string;
   onBack: () => void;
   onNavigateToStory?: () => void;
   onViewBrief: () => void;
-  onViewMeetingPoint: () => void;
   onNavigateToCancelBooking: () => void;
-  onNavigateToRateReview: (bookingId: string) => void;
-  onViewRefundStatus?: () => void;
+  onNavigateToCelebrate: (bookingId: string) => void;
+  onOpenExperience: (slug: string) => void;
+  onStartBooking: (flowState: BookingFlowState) => void;
   onExplore: () => void;
 }
 
@@ -38,15 +47,72 @@ function CopyToast({ visible }: { visible: boolean }) {
   );
 }
 
+function AlternativeTiles({
+  experience,
+  onOpenExperience,
+}: {
+  experience: Experience;
+  onOpenExperience: (slug: string) => void;
+}) {
+  const alternatives = useMemo(
+    () =>
+      experienceSeedData
+        .filter(
+          (e) =>
+            e.category === experience.category &&
+            e.id !== experience.id &&
+            e.publicationStatus === 'published' &&
+            e.bookableInApp,
+        )
+        .slice(0, 3)
+        .map(toListItemView),
+    [experience],
+  );
+
+  if (alternatives.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-heading mb-3">Similar experiences</p>
+      <div className="space-y-2">
+        {alternatives.map((alt) => (
+          <button
+            key={alt.id}
+            type="button"
+            onClick={() => onOpenExperience(alt.slug)}
+            className="w-full flex gap-3 p-2.5 rounded-xl border border-gamana-100 bg-surface text-left hover:bg-gamana-500/5 transition-colors"
+          >
+            {alt.imageUrl ? (
+              <img
+                src={alt.imageUrl}
+                alt={alt.title}
+                className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-lg bg-gamana-100 flex-shrink-0" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-heading line-clamp-2">{alt.title}</p>
+              {alt.priceLabel && (
+                <p className="text-[10px] text-gamana-600 font-medium mt-0.5">{alt.priceLabel}</p>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function BookingDetailScreen({
   bookingId,
   onBack,
   onNavigateToStory,
   onViewBrief,
-  onViewMeetingPoint,
   onNavigateToCancelBooking,
-  onNavigateToRateReview,
-  onViewRefundStatus,
+  onNavigateToCelebrate,
+  onOpenExperience,
+  onStartBooking,
   onExplore,
 }: BookingDetailScreenProps) {
   const { getBookingById } = useMockBookings();
@@ -56,6 +122,9 @@ export default function BookingDetailScreen({
     : null;
 
   const [copied, setCopied] = useState(false);
+  const [ratingReminderDismissed, setRatingReminderDismissed] = useState(false);
+  const [datePaxOpen, setDatePaxOpen] = useState(false);
+  const [meetingPointOpen, setMeetingPointOpen] = useState(false);
 
   useEffect(() => {
     if (!copied) return;
@@ -82,6 +151,8 @@ export default function BookingDetailScreen({
     booking.status === 'confirmed' || booking.status === 'on_request_pending';
   const isCompleted = booking.status === 'completed';
   const isCancelled = booking.status === 'cancelled';
+  const isRejected = booking.status === 'rejected';
+  const isExpired = booking.status === 'expired';
 
   function handleCopy() {
     navigator.clipboard?.writeText(booking.referenceCode).catch(() => {});
@@ -96,7 +167,7 @@ export default function BookingDetailScreen({
     .join(', ');
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-canvas">
+    <div className="relative flex flex-col h-full min-h-0 bg-canvas">
       <StatusBar />
 
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gamana-100">
@@ -171,7 +242,7 @@ export default function BookingDetailScreen({
               </button>
               <button
                 type="button"
-                onClick={onViewMeetingPoint}
+                onClick={() => setMeetingPointOpen(true)}
                 className="w-full py-3.5 rounded-xl border border-gamana-200 text-gamana-600 font-semibold text-sm"
               >
                 Meeting Point
@@ -186,6 +257,48 @@ export default function BookingDetailScreen({
                 </button>
               )}
             </div>
+          )}
+
+          {isRejected && experience && (
+            <>
+              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200">
+                <p className="text-sm font-semibold text-rose-800">Request Declined</p>
+                <p className="text-xs text-rose-700/80 mt-1 leading-relaxed">
+                  {booking.operatorName} couldn&apos;t confirm this booking. You haven&apos;t been
+                  charged.
+                </p>
+              </div>
+              <AlternativeTiles experience={experience} onOpenExperience={onOpenExperience} />
+              <button
+                type="button"
+                onClick={() => setDatePaxOpen(true)}
+                className="w-full py-3.5 rounded-xl bg-gamana-500 text-white font-bold text-sm"
+              >
+                Request a different date
+              </button>
+            </>
+          )}
+
+          {isExpired && experience && (
+            <>
+              <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200">
+                <p className="text-sm font-semibold text-slate-700">Request Timed Out</p>
+                <p className="text-xs text-muted mt-1 leading-relaxed">
+                  The operator didn&apos;t respond in time. Automatically cancelled.
+                </p>
+                <p className="text-xs text-muted mt-2 leading-relaxed">
+                  Any deposit will be refunded within 5–7 business days.
+                </p>
+              </div>
+              <AlternativeTiles experience={experience} onOpenExperience={onOpenExperience} />
+              <button
+                type="button"
+                onClick={onExplore}
+                className="w-full py-3.5 rounded-xl bg-gamana-500 text-white font-bold text-sm"
+              >
+                Browse similar experiences
+              </button>
+            </>
           )}
 
           {isCompleted && experience?.hasLinkedStory && onNavigateToStory && (
@@ -204,40 +317,66 @@ export default function BookingDetailScreen({
             </button>
           )}
 
-          {isCompleted && (
+          {isCompleted && booking.rating != null && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-center">
+              <p className="text-sm font-semibold text-amber-800">
+                You rated this {booking.rating}/5{' '}
+                <Star size={14} className="inline text-amber-500 fill-amber-500" />
+              </p>
+            </div>
+          )}
+
+          {isCompleted && booking.rating == null && booking.ratingDeferred && !ratingReminderDismissed && (
+            <div className="relative p-3.5 rounded-xl bg-amber-50 border border-amber-200">
+              <button
+                type="button"
+                onClick={() => setRatingReminderDismissed(true)}
+                className="absolute top-2 right-2 p-1 text-muted"
+                aria-label="Dismiss"
+              >
+                <X size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigateToCelebrate(booking.id)}
+                className="w-full text-left pr-6"
+              >
+                <p className="text-sm font-semibold text-amber-800">Rate your experience →</p>
+                <p className="text-xs text-muted mt-1">Share what made it memorable</p>
+              </button>
+            </div>
+          )}
+
+          {isCompleted && booking.rating == null && !booking.ratingDeferred && (
             <button
               type="button"
-              onClick={() => onNavigateToRateReview(booking.id)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-semibold text-sm"
+              onClick={() => onNavigateToCelebrate(booking.id)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gamana-500 text-white font-bold text-sm"
             >
               <Star size={18} fill="currentColor" />
-              Rate this experience
+              Celebrate your visit
             </button>
           )}
 
           {isCancelled && (
             <>
-              <button
-                type="button"
-                onClick={onViewRefundStatus}
-                disabled={!onViewRefundStatus}
-                className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-left disabled:cursor-default"
-              >
-                <p className="text-sm font-semibold text-heading">Refund status</p>
-                <p className="text-xs text-muted mt-1 leading-relaxed">
-                  {booking.refundAmount != null
-                    ? `₹${booking.refundAmount.toLocaleString('en-IN')} refunded to your original payment method.`
-                    : 'Refund processing complete.'}
-                </p>
+              <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200">
+                <p className="text-sm font-semibold text-slate-700">Booking cancelled</p>
                 {booking.cancelledAt && (
-                  <p className="text-[11px] text-muted mt-2">
-                    Cancelled {formatDisplayDate(booking.cancelledAt.slice(0, 10))}
+                  <p className="text-xs text-muted mt-1">
+                    Cancelled on {formatDisplayDate(booking.cancelledAt.slice(0, 10))}
                   </p>
                 )}
-                {onViewRefundStatus && (
-                  <p className="text-xs font-semibold text-gamana-600 mt-2">Track refund →</p>
-                )}
-              </button>
+              </div>
+              {booking.cancelledAt && booking.refundAmount != null && (
+                <RefundStepper
+                  refundAmount={booking.refundAmount}
+                  cancelledAt={booking.cancelledAt}
+                  operatorName={booking.operatorName}
+                  referenceCode={booking.referenceCode}
+                  defaultExpanded={false}
+                />
+              )}
               <button
                 type="button"
                 onClick={onExplore}
@@ -249,6 +388,24 @@ export default function BookingDetailScreen({
           )}
         </div>
       </div>
+
+      {experience && (
+        <DatePaxSheet
+          isOpen={datePaxOpen}
+          experience={experience}
+          onClose={() => setDatePaxOpen(false)}
+          onContinue={(flowState) => {
+            setDatePaxOpen(false);
+            onStartBooking(flowState);
+          }}
+        />
+      )}
+
+      <MeetingPointBottomSheet
+        isOpen={meetingPointOpen}
+        bookingId={bookingId}
+        onClose={() => setMeetingPointOpen(false)}
+      />
 
       <CopyToast visible={copied} />
     </div>

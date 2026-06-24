@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type { ExperienceTab } from '../../types/experience';
+import { getFilterMeta } from '../../lib/experience-mock-api';
 
 export interface ExperienceSheetFilters {
   categories: string[];
@@ -8,6 +10,7 @@ export interface ExperienceSheetFilters {
   maxPrice: number | null;
   bookingType: 'instant' | 'on_request' | 'both';
   difficulty: string | null;
+  timeOfDay: 'morning' | 'afternoon' | 'evening' | null;
 }
 
 interface ExperienceFilterSheetProps {
@@ -16,20 +19,9 @@ interface ExperienceFilterSheetProps {
   onApply: (filters: ExperienceSheetFilters) => void;
   initialFilters?: ExperienceSheetFilters;
   resultCount: number;
+  tab: ExperienceTab;
+  city: string;
 }
-
-const CATEGORIES = [
-  'Heritage',
-  'Food & Drink',
-  'Walking',
-  'Spiritual',
-  'Adventure',
-  'Workshop',
-  'Nature & Wildlife',
-  'Nightlife',
-  'Transport',
-  'Attractions',
-];
 
 const DURATIONS = ['< 1h', '1–3h', 'Half Day', 'Full Day'];
 
@@ -39,15 +31,17 @@ const TYPES: { id: ExperienceSheetFilters['type']; label: string }[] = [
   { id: 'both', label: 'Both' },
 ];
 
-const LANGUAGES = ['English', 'Hindi', 'Kannada', 'Tamil'];
-
 const BOOKING_TYPES: { id: ExperienceSheetFilters['bookingType']; label: string }[] = [
   { id: 'instant', label: 'Instant' },
   { id: 'on_request', label: 'On Request' },
   { id: 'both', label: 'Both' },
 ];
 
-const DIFFICULTIES = ['Easy', 'Moderate', 'Strenuous'];
+const TIME_OF_DAY = [
+  { id: 'morning' as const, label: 'Morning' },
+  { id: 'afternoon' as const, label: 'Afternoon' },
+  { id: 'evening' as const, label: 'Evening' },
+];
 
 export const DEFAULT_SHEET_FILTERS: ExperienceSheetFilters = {
   categories: [],
@@ -57,6 +51,7 @@ export const DEFAULT_SHEET_FILTERS: ExperienceSheetFilters = {
   maxPrice: null,
   bookingType: 'both',
   difficulty: null,
+  timeOfDay: null,
 };
 
 export function countActiveSheetFilters(filters: ExperienceSheetFilters): number {
@@ -68,6 +63,7 @@ export function countActiveSheetFilters(filters: ExperienceSheetFilters): number
   if (filters.maxPrice != null) count += 1;
   if (filters.bookingType !== 'both') count += 1;
   if (filters.difficulty) count += 1;
+  if (filters.timeOfDay) count += 1;
   return count;
 }
 
@@ -83,7 +79,25 @@ export default function ExperienceFilterSheet({
   onApply,
   initialFilters = DEFAULT_SHEET_FILTERS,
   resultCount,
+  tab,
+  city,
 }: ExperienceFilterSheetProps) {
+  const filterMeta = useMemo(() => getFilterMeta(tab, city), [tab, city]);
+  const categoryOptions = filterMeta.categories;
+  const languageOptions = filterMeta.languages;
+  const difficultyOptions = filterMeta.difficulties.filter(
+    (difficulty) => difficulty !== 'not_specified',
+  );
+  const typeOptions: { id: ExperienceSheetFilters['type']; label: string }[] = useMemo(() => {
+    const hasAudio = filterMeta.experienceTypes.includes('Self-Guided Audio Tour');
+    return hasAudio
+      ? TYPES
+      : [
+          { id: 'guided', label: 'Guided' },
+          { id: 'both', label: 'Both' },
+        ];
+  }, [filterMeta.experienceTypes]);
+
   const [filters, setFilters] = useState<ExperienceSheetFilters>(initialFilters);
   const [isClosing, setIsClosing] = useState(false);
   const [dragY, setDragY] = useState(0);
@@ -91,12 +105,35 @@ export default function ExperienceFilterSheet({
   const isDragging = useRef(false);
 
   useEffect(() => {
+    const allowedCategories = new Set(categoryOptions);
+    const allowedLanguages = new Set(languageOptions);
+    const allowedDifficulties = new Set(
+      difficultyOptions.map((difficulty) => difficulty.toLowerCase()),
+    );
+    const canUseAudio = typeOptions.some((opt) => opt.id === 'audio');
+    const nextType =
+      !canUseAudio && initialFilters.type === 'audio' ? 'guided' : initialFilters.type;
+
+    const sanitized: ExperienceSheetFilters = {
+      ...initialFilters,
+      categories: initialFilters.categories.filter((category) =>
+        allowedCategories.has(category),
+      ),
+      languages: initialFilters.languages.filter((language) => allowedLanguages.has(language)),
+      difficulty:
+        initialFilters.difficulty &&
+        allowedDifficulties.has(initialFilters.difficulty.toLowerCase())
+          ? initialFilters.difficulty
+          : null,
+      type: nextType,
+    };
+
     if (isOpen) {
-      setFilters(initialFilters);
+      setFilters(sanitized);
       setIsClosing(false);
       setDragY(0);
     }
-  }, [isOpen, initialFilters]);
+  }, [isOpen, initialFilters, categoryOptions, languageOptions, difficultyOptions, typeOptions]);
 
   const handleClose = useCallback(() => {
     setIsClosing(true);
@@ -199,7 +236,7 @@ export default function ExperienceFilterSheet({
           <section>
             <h3 className="text-xs font-semibold text-heading mb-2">Category</h3>
             <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((category) => (
+              {categoryOptions.map((category) => (
                 <button
                   key={category}
                   type="button"
@@ -240,7 +277,7 @@ export default function ExperienceFilterSheet({
           <section>
             <h3 className="text-xs font-semibold text-heading mb-2">Type</h3>
             <div className="flex flex-wrap gap-2">
-              {TYPES.map(({ id, label }) => (
+              {typeOptions.map(({ id, label }) => (
                 <button
                   key={id}
                   type="button"
@@ -258,7 +295,7 @@ export default function ExperienceFilterSheet({
           <section>
             <h3 className="text-xs font-semibold text-heading mb-2">Language</h3>
             <div className="flex flex-wrap gap-2">
-              {LANGUAGES.map((language) => (
+              {languageOptions.map((language) => (
                 <button
                   key={language}
                   type="button"
@@ -320,9 +357,32 @@ export default function ExperienceFilterSheet({
           </section>
 
           <section>
+            <h3 className="text-xs font-semibold text-heading mb-2">Time of Day</h3>
+            <div className="flex flex-wrap gap-2">
+              {TIME_OF_DAY.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      timeOfDay: prev.timeOfDay === id ? null : id,
+                    }))
+                  }
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${chipClass(
+                    filters.timeOfDay === id,
+                  )}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
             <h3 className="text-xs font-semibold text-heading mb-2">Difficulty</h3>
             <div className="flex flex-wrap gap-2">
-              {DIFFICULTIES.map((difficulty) => (
+              {difficultyOptions.map((difficulty) => (
                 <button
                   key={difficulty}
                   type="button"
@@ -336,7 +396,7 @@ export default function ExperienceFilterSheet({
                     filters.difficulty === difficulty,
                   )}`}
                 >
-                  {difficulty}
+                  {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
                 </button>
               ))}
             </div>

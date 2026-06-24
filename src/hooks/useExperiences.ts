@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { ExperienceSheetFilters } from '../components/experiences/ExperienceFilterSheet';
 import {
   getExperienceBySlug,
   getRecommendedExperiences,
@@ -39,16 +40,24 @@ export function useExperienceList(
   tab: ExperienceTab,
   filters: ExperienceFilters,
   sort: ExperienceSort,
+  sheetFilters?: ExperienceSheetFilters,
 ) {
   const [items, setItems] = useState<ExperienceListItemView[]>([]);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  const filtersSignature = JSON.stringify(filters);
+  const sheetFiltersSignature = JSON.stringify(sheetFilters ?? {});
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
-    listExperiences({ city, tab, filters, sort })
+    listExperiences({ city, tab, filters, sheetFilters, sort })
       .then((res) => {
-        if (!cancelled) setItems(res.listViews);
+        if (!cancelled) {
+          setItems(res.listViews);
+          setTotal(res.total);
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -56,9 +65,9 @@ export function useExperienceList(
     return () => {
       cancelled = true;
     };
-  }, [city, tab, filters, sort]);
+  }, [city, tab, filtersSignature, sort, sheetFiltersSignature]);
 
-  return { items, isLoading };
+  return { items, total, isLoading };
 }
 
 export function useExperienceDetail(slug: string | null) {

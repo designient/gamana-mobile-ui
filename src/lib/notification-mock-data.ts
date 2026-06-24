@@ -7,7 +7,8 @@ export type NotificationType =
   | 'day_of_morning'
   | 'operator_cancelled'
   | 'last_spots'
-  | 'nearby_geo';
+  | 'nearby_geo'
+  | 'weekend_planner';
 
 export type NotificationIconType = 'success' | 'warning' | 'info' | 'urgent' | 'location';
 
@@ -112,6 +113,16 @@ export const MOCK_NOTIFICATIONS: NotificationMock[] = [
     experienceId: 'exp-004',
     iconType: 'location',
     actionLabel: 'View Experience',
+  },
+  {
+    id: 'N-10',
+    type: 'weekend_planner',
+    title: "Weekend's open",
+    body: '3 activities are bookable near you tomorrow — from cooking classes to sunset walks.',
+    timestamp: 'Fri, 5:30 PM',
+    experienceId: 'exp-001',
+    iconType: 'info',
+    actionLabel: "See What's On",
   },
 ];
 

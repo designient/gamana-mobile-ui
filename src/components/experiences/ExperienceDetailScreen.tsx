@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft, BookOpen, Share2 } from 'lucide-react';
 import { useExperienceDetail } from '../../hooks/useExperiences';
 import { formatPriceLabel } from '../../lib/experience-mappers';
 import { trackExperienceEvent, priceBucket } from '../../lib/experience-analytics';
@@ -25,13 +25,18 @@ import ExperienceSectionNav from './detail/ExperienceSectionNav';
 import ExperienceDetailBookingBar from './detail/ExperienceDetailBookingBar';
 import DetailSection from './detail/DetailSection';
 import DatePaxSheet from './booking/DatePaxSheet';
+import OperatorProfileBottomSheet from './OperatorProfileBottomSheet';
+import { resolveOperatorName } from '../../lib/experience-seed-helpers';
 import type { BookingFlowState } from '../../lib/experience-booking-flow';
+import { shareExperience } from '../../lib/experience-share';
 
 interface ExperienceDetailScreenProps {
   slug: string;
   onBack: () => void;
   onNavigateToStory?: (storyId: string) => void;
   onBookingFlowContinue: (flowState: BookingFlowState) => void;
+  onOpenExperience?: (slug: string) => void;
+  onBrowseAllExperiences?: () => void;
 }
 
 export default function ExperienceDetailScreen({
@@ -39,11 +44,15 @@ export default function ExperienceDetailScreen({
   onBack,
   onNavigateToStory,
   onBookingFlowContinue,
+  onOpenExperience,
+  onBrowseAllExperiences,
 }: ExperienceDetailScreenProps) {
   const { experience, isLoading } = useExperienceDetail(slug);
   const { isOnline } = useConnectivity();
   const [datePaxOpen, setDatePaxOpen] = useState(false);
+  const [operatorSheetOpen, setOperatorSheetOpen] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [shareToast, setShareToast] = useState(false);
 
   const photos = useMemo(() => {
     if (!experience) return [];
@@ -78,6 +87,12 @@ export default function ExperienceDetailScreen({
       });
     }
   }, [experience]);
+
+  useEffect(() => {
+    if (!shareToast) return;
+    const t = setTimeout(() => setShareToast(false), 2000);
+    return () => clearTimeout(t);
+  }, [shareToast]);
 
   function handleBook() {
     if (!experience || slug === 'nandi-hills-day-trip') return;
@@ -156,6 +171,14 @@ export default function ExperienceDetailScreen({
           >
             <ArrowLeft size={20} />
           </button>
+          <button
+            type="button"
+            onClick={() => shareExperience(experience, () => setShareToast(true))}
+            className="absolute top-3 right-3 p-2 rounded-full bg-black/40 text-white z-10"
+            aria-label="Share experience"
+          >
+            <Share2 size={18} />
+          </button>
         </div>
 
         {isSoldOut && (
@@ -168,7 +191,12 @@ export default function ExperienceDetailScreen({
         <ExperienceSectionNav visibleIds={visibleSectionIds} />
 
         <div id="section-overview">
-          <ExperienceDetailHeader experience={experience} />
+          <ExperienceDetailHeader
+            experience={experience}
+            onOperatorClick={
+              experience.sourceVendorId ? () => setOperatorSheetOpen(true) : undefined
+            }
+          />
 
           <DetailSection noBorder>
             <ExperienceActivityFacts experience={experience} />
@@ -303,6 +331,28 @@ export default function ExperienceDetailScreen({
         onClose={() => setDatePaxOpen(false)}
         onContinue={handleDatePaxContinue}
       />
+
+      {experience.sourceVendorId && (
+        <OperatorProfileBottomSheet
+          isOpen={operatorSheetOpen}
+          vendorId={experience.sourceVendorId}
+          operatorName={resolveOperatorName(experience)}
+          onClose={() => setOperatorSheetOpen(false)}
+          onOpenExperience={(s) => {
+            setOperatorSheetOpen(false);
+            onOpenExperience?.(s);
+          }}
+          onBrowseAll={onBrowseAllExperiences}
+        />
+      )}
+
+      <div
+        className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gamana-900 text-white rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 ${
+          shareToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+        }`}
+      >
+        Link copied!
+      </div>
     </div>
   );
 }

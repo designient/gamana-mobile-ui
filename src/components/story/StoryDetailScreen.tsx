@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { CalendarDays } from 'lucide-react';
 import type { Story, Narrator } from '../../types';
 import { STORY_COIN_COST } from '../../lib/constants';
 import { useStoryDetail } from '../../hooks/useStoryDetail';
@@ -39,6 +40,7 @@ interface StoryDetailScreenProps {
   onNavigateToStory: (storyId: string) => void;
   onNavigateToCoins: () => void;
   onBalanceChange: (newBalance: number) => void;
+  onNavigateToExperience?: (slug: string) => void;
 }
 
 export default function StoryDetailScreen({
@@ -56,6 +58,7 @@ export default function StoryDetailScreen({
   onNavigateToStory,
   onNavigateToCoins,
   onBalanceChange,
+  onNavigateToExperience,
 }: StoryDetailScreenProps) {
   const { isOnline } = useConnectivity();
   const { downloadState, startDownload, isDownloaded, isDownloading } = useDownloadState('story', storyId);
@@ -192,6 +195,21 @@ export default function StoryDetailScreen({
               related={related}
               onNavigateToStory={onNavigateToStory}
             />
+
+            {story.linkedBookableExperienceSlug &&
+              story.linkedBookableExperienceLabel &&
+              onNavigateToExperience && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateToExperience(story.linkedBookableExperienceSlug!)}
+                  className="mx-4 mb-4 w-[calc(100%-2rem)] flex items-center gap-3 p-3.5 rounded-xl bg-teal-50 border border-teal-200 text-left"
+                >
+                  <CalendarDays size={22} className="text-teal-600 flex-shrink-0" />
+                  <p className="text-sm font-semibold text-teal-900">
+                    {story.linkedBookableExperienceLabel}
+                  </p>
+                </button>
+              )}
 
             <PracticalCues cues={practicalCues} />
 

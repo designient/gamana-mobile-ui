@@ -5,9 +5,13 @@ import { formatDurationLabel } from '../../../lib/experience-mappers';
 
 interface ExperienceDetailHeaderProps {
   experience: Experience;
+  onOperatorClick?: () => void;
 }
 
-export default function ExperienceDetailHeader({ experience }: ExperienceDetailHeaderProps) {
+export default function ExperienceDetailHeader({
+  experience,
+  onOperatorClick,
+}: ExperienceDetailHeaderProps) {
   const operator = resolveOperatorName(experience);
   const durationLabel = formatDurationLabel(experience.durationMinutes);
   const reviewCount = experience.reviewSummary?.count;
@@ -15,7 +19,18 @@ export default function ExperienceDetailHeader({ experience }: ExperienceDetailH
   return (
     <div className="px-4 pt-4 pb-1">
       <p className="text-xs text-muted mb-2">
-        by <span className="font-medium text-heading">{operator}</span>
+        by{' '}
+        {onOperatorClick && experience.sourceVendorId ? (
+          <button
+            type="button"
+            onClick={onOperatorClick}
+            className="font-medium text-heading underline underline-offset-2"
+          >
+            {operator}
+          </button>
+        ) : (
+          <span className="font-medium text-heading">{operator}</span>
+        )}
       </p>
       <div className="flex flex-wrap gap-2 mb-3">
         <span className="px-2.5 py-1 rounded-lg bg-gamana-500/10 text-[11px] font-semibold text-gamana-600">

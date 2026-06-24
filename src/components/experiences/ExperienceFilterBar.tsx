@@ -233,6 +233,30 @@ export default function ExperienceFilterBar({
               onClick={() =>
                 onFiltersChange({
                   ...filters,
+                  availableTomorrow: filters.availableTomorrow ? undefined : true,
+                })
+              }
+              className={chip(!!filters.availableTomorrow)}
+            >
+              Available Tomorrow
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onFiltersChange({
+                  ...filters,
+                  onRequest: filters.onRequest ? undefined : true,
+                })
+              }
+              className={chip(!!filters.onRequest)}
+            >
+              On request
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onFiltersChange({
+                  ...filters,
                   minAge: filters.minAge === 12 ? undefined : 12,
                 })
               }

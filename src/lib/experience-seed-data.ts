@@ -1,5 +1,6 @@
 import type { Experience } from '../types/experience';
 import { RICH_OVERLAYS } from './experience-seed-rich-overlays';
+import { seedExtraFields } from './experience-seed-helpers';
 
 const IMG = (id: number) =>
   `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800`;
@@ -8,7 +9,8 @@ const now = '2026-06-01T00:00:00.000Z';
 
 function exp(partial: Experience): Experience {
   const overlay = RICH_OVERLAYS[partial.id] ?? {};
-  return { ...partial, ...overlay };
+  const merged = { ...partial, ...overlay };
+  return { ...merged, ...seedExtraFields(merged) } as Experience;
 }
 
 export const experienceSeedData: Experience[] = [
@@ -671,6 +673,95 @@ export const experienceSeedData: Experience[] = [
     publicationStatus: 'published',
     bookableInApp: true,
     rawCategory: 'airport transfer',
+    createdAt: now,
+    updatedAt: now,
+  }),
+  exp({
+    id: 'exp-017',
+    slug: 'sunset-boat-ride-hebbal-lake',
+    source: 'bokun',
+    sourceVendorId: 'vendor-blr-water',
+    sourceProductId: 'bokun-boat-11',
+    title: 'Hebbal Lake Sunset Boat Ride',
+    shortDescription: 'Gentle evening cruise with skyline views and a short nature briefing.',
+    gamanaEditorialSummary:
+      'Relaxed pace activity for couples and families; best booked around golden hour.',
+    heroImageUrl: IMG(2159065),
+    photoUrls: [IMG(2159065)],
+    category: 'Water Activities',
+    experienceType: 'Activity',
+    tags: ['boat', 'sunset', 'lake'],
+    uiTabIntent: 'activities',
+    city: 'Bengaluru',
+    country: 'India',
+    locality: 'Hebbal',
+    durationMinutes: 90,
+    languages: ['English', 'Hindi'],
+    difficultyLevel: 'easy',
+    minAge: 5,
+    familyFriendly: true,
+    priceFrom: 1450,
+    priceCurrency: 'INR',
+    ratingValue: 4.4,
+    ratingSource: 'tripadvisor',
+    pickupAvailable: false,
+    meetingType: 'meet_on_location',
+    meetingPointText: 'Hebbal Lake boating dock',
+    capacityType: 'free_sale',
+    instantConfirmation: true,
+    inclusions: ['Boat ticket', 'Safety jacket'],
+    exclusions: ['Hotel pickup'],
+    hasLinkedStory: false,
+    qualityScore: 81,
+    publicationStatus: 'published',
+    bookableInApp: true,
+    experienceFormat: 'cruise_boat',
+    rawCategory: 'rafting',
+    rawAttributes: ['outdoor', 'family'],
+    createdAt: now,
+    updatedAt: now,
+  }),
+  exp({
+    id: 'exp-018',
+    slug: 'kathakali-cultural-evening-show',
+    source: 'bokun',
+    sourceVendorId: 'vendor-blr-cultural',
+    sourceProductId: 'bokun-show-4',
+    title: 'Classical Dance & Storytelling Evening',
+    shortDescription:
+      'Curated performance with live narration introducing themes, costumes, and musical structure.',
+    gamanaEditorialSummary:
+      'Great first cultural show for visitors who want context, not just stage time.',
+    heroImageUrl: IMG(2747449),
+    photoUrls: [IMG(2747449)],
+    category: 'Nightlife & Entertainment',
+    experienceType: 'Activity',
+    tags: ['performance', 'culture', 'evening'],
+    uiTabIntent: 'activities',
+    city: 'Bengaluru',
+    country: 'India',
+    locality: 'JP Nagar',
+    durationMinutes: 120,
+    languages: ['English'],
+    difficultyLevel: 'easy',
+    minAge: 8,
+    priceFrom: 1600,
+    priceCurrency: 'INR',
+    ratingValue: 4.6,
+    ratingSource: 'tripadvisor',
+    pickupAvailable: false,
+    meetingType: 'meet_on_location',
+    meetingPointText: 'Ranga Shankara foyer',
+    capacityType: 'limited',
+    instantConfirmation: true,
+    inclusions: ['Show ticket', 'Program notes'],
+    exclusions: ['Transfers', 'Snacks'],
+    hasLinkedStory: false,
+    qualityScore: 84,
+    publicationStatus: 'published',
+    bookableInApp: true,
+    experienceFormat: 'cultural_show',
+    rawCategory: 'temple tour',
     createdAt: now,
     updatedAt: now,
   }),

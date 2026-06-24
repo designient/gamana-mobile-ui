@@ -1,6 +1,9 @@
+import type { ExperienceSheetFilters } from '../components/experiences/ExperienceFilterSheet';
 import { experienceSeedData } from './experience-seed-data';
 import { toListItemView } from './experience-mappers';
 import { OPERATOR_NAMES, resolveOperatorName } from './experience-seed-helpers';
+import { applySheetFilters } from './experience-sheet-filters';
+import { getMockSlots } from './experience-booking-flow';
 import type {
   AvailabilitySlot,
   BookingEvent,
@@ -32,6 +35,41 @@ function filterByTab(experiences: Experience[], tab: ExperienceTab): Experience[
   return experiences.filter((e) => e.uiTabIntent === tab);
 }
 
+function parseSlotHour(time: string): number {
+  const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return 12;
+  let hours = parseInt(match[1], 10);
+  const meridiem = match[3].toUpperCase();
+  if (meridiem === 'PM' && hours !== 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+  return hours;
+}
+
+function hasAvailabilityTomorrow(): boolean {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  return getMockSlots(tomorrowStr).some((s) => s.spotsLeft !== 0);
+}
+
+function matchesTimeOfDay(timeOfDay: 'morning' | 'afternoon' | 'evening'): boolean {
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dates = [today.toISOString().slice(0, 10), tomorrow.toISOString().slice(0, 10)];
+
+  for (const date of dates) {
+    for (const slot of getMockSlots(date)) {
+      if (slot.spotsLeft === 0) continue;
+      const hour = parseSlotHour(slot.time);
+      if (timeOfDay === 'morning' && hour < 12) return true;
+      if (timeOfDay === 'afternoon' && hour >= 12 && hour < 17) return true;
+      if (timeOfDay === 'evening' && hour >= 17) return true;
+    }
+  }
+  return false;
+}
+
 function applyFilters(experiences: Experience[], filters: ExperienceFilters): Experience[] {
   return experiences.filter((e) => {
     if (filters.category && e.category !== filters.category) return false;
@@ -48,8 +86,46 @@ function applyFilters(experiences: Experience[], filters: ExperienceFilters): Ex
     }
     if (filters.minAge != null && (e.minAge ?? 0) > filters.minAge) return false;
     if (filters.ratingMin != null && (e.ratingValue ?? 0) < filters.ratingMin) return false;
+    if (filters.onRequest != null) {
+      const isOnRequest = e.capacityType === 'on_request' || !e.instantConfirmation;
+      if (filters.onRequest && !isOnRequest) return false;
+      if (!filters.onRequest && isOnRequest) return false;
+    }
+    if (filters.availableTomorrow && !hasAvailabilityTomorrow()) return false;
+    if (filters.timeOfDay && !matchesTimeOfDay(filters.timeOfDay)) return false;
     return true;
   });
+}
+
+function matchesQuery(haystack: string, words: string[]): boolean {
+  const lower = haystack.toLowerCase();
+  return words.every((w) => lower.includes(w));
+}
+
+export function searchExperiences(
+  query: string,
+  city = 'Bengaluru',
+  limit = 8,
+): ExperienceListItemView[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const words = q.split(/\s+/).filter(Boolean);
+
+  const results = filterByCity(experienceSeedData, city).filter((e) => {
+    const haystack = [
+      e.title,
+      e.shortDescription,
+      e.gamanaEditorialSummary ?? '',
+      e.category,
+      e.experienceType,
+      e.locality ?? '',
+      e.city,
+      ...e.tags,
+    ].join(' ');
+    return matchesQuery(haystack, words);
+  });
+
+  return sortExperiences(results, 'recommended').slice(0, limit).map(toListItemView);
 }
 
 function sortExperiences(experiences: Experience[], sort: ExperienceSort): Experience[] {
@@ -129,6 +205,7 @@ export interface ListExperiencesParams {
   city: string;
   tab: ExperienceTab;
   filters?: ExperienceFilters;
+  sheetFilters?: ExperienceSheetFilters;
   sort?: ExperienceSort;
   page?: number;
   limit?: number;
@@ -153,13 +230,20 @@ export async function listExperiences(params: ListExperiencesParams): Promise<Li
     city,
     tab,
     filters = {},
+    sheetFilters,
     sort = 'recommended',
     page = 1,
     limit = 20,
   } = params;
 
   let results = filterByTab(filterByCity(experienceSeedData, city), tab);
-  results = applyFilters(results, filters);
+  results = applyFilters(results, {
+    ...filters,
+    timeOfDay: filters.timeOfDay ?? sheetFilters?.timeOfDay ?? null,
+  });
+  if (sheetFilters) {
+    results = applySheetFilters(results, sheetFilters);
+  }
   results = sortExperiences(results, sort);
 
   const total = results.length;

@@ -162,36 +162,15 @@ export function needsPickupStep(experience: Experience): boolean {
   );
 }
 
-export function getBookingStepCount(experience: Experience): number {
-  if (isOnRequestExperience(experience)) return 4;
-  if (needsTimeSlotStep(experience) && needsPickupStep(experience)) return 5;
-  return 4;
+export function getBookingStepCount(_experience: Experience): number {
+  return 2;
 }
 
 export function getStepIndex(
-  screen: 'date_pax' | 'timeslot' | 'pickup' | 'questions' | 'review',
-  experience: Experience,
+  screen: 'questions' | 'review',
+  _experience: Experience,
 ): number {
-  const onRequest = isOnRequestExperience(experience);
-  const hasTime = needsTimeSlotStep(experience);
-  const hasPickup = needsPickupStep(experience);
-
-  if (screen === 'date_pax') return 0;
-  if (screen === 'timeslot') return 1;
-  if (screen === 'pickup') return hasTime ? 2 : 1;
-  if (screen === 'questions') {
-    if (onRequest) return 1;
-    if (hasTime && hasPickup) return 3;
-    if (hasTime) return 2;
-    return 1;
-  }
-  if (screen === 'review') {
-    if (onRequest) return 2;
-    if (hasTime && hasPickup) return 4;
-    if (hasTime) return 3;
-    return 2;
-  }
-  return 0;
+  return screen === 'questions' ? 0 : 1;
 }
 
 export function buildDateRange(startDate: Date, count: number): Date[] {

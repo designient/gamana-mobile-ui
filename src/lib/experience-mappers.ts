@@ -1,9 +1,11 @@
 import type {
   Experience,
   ExperienceCtaLabel,
+  ExperienceFormat,
   ExperienceListItemView,
   ExperiencePromoBadge,
   ExperienceSourceLabel,
+  VibeTag,
 } from '../types/experience';
 
 export function formatDurationLabel(minutes?: number): string | undefined {
@@ -43,6 +45,76 @@ export const PROMO_BADGE_STYLES: Record<ExperiencePromoBadge, string> = {
   new_activity: 'bg-slate-500 text-white',
 };
 
+export const FORMAT_LABELS: Record<ExperienceFormat, string> = {
+  walking_tour: 'Walking Tour',
+  food_drink: 'Food & Drink',
+  attraction: 'Attraction',
+  day_trip: 'Day Trip',
+  workshop: 'Workshop',
+  nature_wildlife: 'Nature & Wildlife',
+  cruise_boat: 'Cruise / Boat',
+  adventure: 'Adventure',
+  cultural_show: 'Cultural Show',
+  social_nightlife: 'Social / Nightlife',
+};
+
+export const VIBE_LABELS: Record<VibeTag, string> = {
+  chill: 'Chill',
+  social: 'Social',
+  active: 'Active',
+  deep_dive: 'Deep Dive',
+  date_worthy: 'Date-worthy',
+  hidden_gem: 'Hidden Gem',
+  iconic: 'Iconic',
+  morning: 'Morning',
+  sunset: 'Sunset',
+  solo_friendly: 'Solo-friendly',
+};
+
+export function deriveExperienceFormat(exp: Experience): ExperienceFormat {
+  if (exp.experienceFormat) return exp.experienceFormat;
+
+  const cat = exp.category?.toLowerCase() ?? '';
+  const dur = exp.durationMinutes ?? 0;
+
+  if (exp.experienceType === 'Attraction Ticket') return 'attraction';
+  if (dur >= 240) return 'day_trip';
+  if (cat.includes('food') || cat.includes('drink')) return 'food_drink';
+  if (cat.includes('workshop') || cat.includes('craft')) return 'workshop';
+  if (cat.includes('nature') || cat.includes('wildlife') || cat.includes('park')) {
+    return 'nature_wildlife';
+  }
+  if (cat.includes('adventure') || cat.includes('trek')) return 'adventure';
+  if (cat.includes('nightlife') || cat.includes('bar')) return 'social_nightlife';
+  if (cat.includes('cruise') || cat.includes('boat') || cat.includes('backwater')) {
+    return 'cruise_boat';
+  }
+  if (cat.includes('spiritual') || cat.includes('temple') || cat.includes('ritual')) {
+    return 'cultural_show';
+  }
+  if (cat.includes('walking') || cat.includes('heritage')) return 'walking_tour';
+
+  if (dur > 0 && dur <= 120) return 'walking_tour';
+  return 'attraction';
+}
+
+export function deriveVibeTag(exp: Experience): VibeTag {
+  if (exp.vibeTag) return exp.vibeTag;
+
+  if (exp.isPrivate) return 'date_worthy';
+  if ((exp.groupSizeMax ?? 12) <= 4) return 'solo_friendly';
+  if (exp.durationMinutes && exp.durationMinutes >= 240) return 'deep_dive';
+  if ((exp.bookingsThisWeek ?? 0) >= 10) return 'iconic';
+  if ((exp.bookingsThisWeek ?? 0) <= 2) return 'hidden_gem';
+
+  const format = deriveExperienceFormat(exp);
+  if (format === 'food_drink' || format === 'social_nightlife') return 'social';
+  if (format === 'adventure' || format === 'nature_wildlife') return 'active';
+  if (format === 'walking_tour' || format === 'attraction') return 'chill';
+
+  return 'chill';
+}
+
 export function deriveBadges(exp: Experience): string[] {
   const badges: string[] = [];
   if (exp.pickupAvailable) badges.push('Pickup');
@@ -59,9 +131,6 @@ export function deriveBadges(exp: Experience): string[] {
 }
 
 function resolvePromoBadge(exp: Experience): ExperiencePromoBadge | undefined {
-  const created = new Date(exp.createdAt).getTime();
-  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-  if (created >= thirtyDaysAgo) return 'new_activity';
   if (exp.source === 'gamana_native' && exp.qualityScore >= 90) return 'gamana_certified';
   if (exp.capacityType === 'limited') return 'selling_out';
   if (exp.qualityScore >= 90) return 'top_pick';
@@ -131,6 +200,13 @@ export function toListItemView(exp: Experience): ExperienceListItemView {
     localityLabel: exp.locality,
     detailsLine: buildDetailsLine(exp, badges),
     promoBadge: resolvePromoBadge(exp),
+    experienceFormat: deriveExperienceFormat(exp),
+    vibeTag: deriveVibeTag(exp),
+    groupSizeMax: exp.groupSizeMax ?? 12,
+    isPrivate: exp.isPrivate ?? false,
+    bookingsThisWeek: exp.bookingsThisWeek ?? 0,
+    freeCancellation: exp.freeCancellation ?? false,
+    instantConfirmation: exp.instantConfirmation,
   };
 }
 

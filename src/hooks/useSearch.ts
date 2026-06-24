@@ -1,12 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SearchResults } from '../types';
 import { searchAll } from '../lib/localDb';
+import { searchExperiences } from '../lib/experience-mock-api';
 
 const RECENT_KEY = 'gamana_recent_searches';
 const MAX_RECENT = 8;
 const DEBOUNCE_MS = 200;
 
-const EMPTY_RESULTS: SearchResults = { stories: [], topics: [], narrators: [], cities: [], total: 0 };
+const EMPTY_RESULTS: SearchResults = {
+  stories: [],
+  topics: [],
+  narrators: [],
+  cities: [],
+  experiences: [],
+  total: 0,
+};
 
 function loadRecent(): string[] {
   try {
@@ -38,7 +46,13 @@ export function useSearch() {
     setIsSearching(true);
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      setResults(searchAll(query));
+      const base = searchAll(query);
+      const experiences = searchExperiences(query, 'Bengaluru');
+      setResults({
+        ...base,
+        experiences,
+        total: base.total + experiences.length,
+      });
       setIsSearching(false);
     }, DEBOUNCE_MS);
 

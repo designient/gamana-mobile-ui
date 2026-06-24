@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Star, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import type { ExperienceListItemView } from '../../types/experience';
 import {
   PROMO_BADGE_LABELS,
   PROMO_BADGE_STYLES,
 } from '../../lib/experience-mappers';
 import { isExperienceSaved, toggleExperienceSaved } from '../../lib/experience-saved';
+import {
+  FormatChip,
+  VibePill,
+  ExperiencePropertyLabels,
+  ExperienceMetaLine,
+} from './ExperienceCardMeta';
 
 export type ExperienceBookCardLayout = 'carousel' | 'feed';
 
@@ -57,7 +63,7 @@ export default function ExperienceBookCard({
       className={`
         rounded-2xl overflow-hidden bg-surface border border-gamana-100 shadow-card text-left
         transition-transform active:scale-[0.98] cursor-pointer
-        ${isFeed ? 'w-full' : 'flex-none w-[280px] snap-start'}
+        ${isFeed ? 'w-full' : 'flex-none w-[254px] snap-start'}
       `}
     >
       <div className={`relative w-full ${isFeed ? 'h-44' : 'h-40'}`}>
@@ -67,35 +73,43 @@ export default function ExperienceBookCard({
           <div className="w-full h-full bg-gamana-100" />
         )}
 
-        {item.ratingValue != null && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full bg-black/55 text-[10px] font-semibold text-white">
-            <Star size={10} className="text-amber-400" fill="currentColor" />
-            {item.ratingValue.toFixed(1)}
-            {item.reviewCount != null && (
-              <span className="text-white/80 font-normal">({item.reviewCount.toLocaleString()})</span>
-            )}
+        <div className="absolute top-2 left-2">
+          <FormatChip item={item} />
+        </div>
+
+        {(item.priceFrom != null || item.priceLabel) && (
+          <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-black/55 text-[10px] font-semibold text-white">
+            {item.priceFrom != null
+              ? `₹${item.priceFrom.toLocaleString('en-IN')}`
+              : item.priceLabel}
           </div>
         )}
 
         {item.promoBadge && (
           <span
-            className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold ${PROMO_BADGE_STYLES[item.promoBadge]}`}
+            className={`absolute top-10 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold ${PROMO_BADGE_STYLES[item.promoBadge]}`}
           >
             {PROMO_BADGE_LABELS[item.promoBadge]}
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={handleHeart}
-          className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-black/45 flex items-center justify-center"
-          aria-label={saved ? 'Remove from saved' : 'Save experience'}
-        >
-          <Heart
-            size={16}
-            className={saved ? 'text-rose-400 fill-rose-400' : 'text-white'}
-          />
-        </button>
+        <div className="absolute bottom-2 left-2">
+          <VibePill item={item} />
+        </div>
+
+        <div className="absolute bottom-2 right-2">
+          <button
+            type="button"
+            onClick={handleHeart}
+            className="w-8 h-8 rounded-full bg-black/45 flex items-center justify-center flex-shrink-0"
+            aria-label={saved ? 'Remove from saved' : 'Save experience'}
+          >
+            <Heart
+              size={16}
+              className={saved ? 'text-rose-400 fill-rose-400' : 'text-white'}
+            />
+          </button>
+        </div>
       </div>
 
       <div className="p-3">
@@ -105,9 +119,10 @@ export default function ExperienceBookCard({
         <h4 className="text-sm font-semibold text-heading line-clamp-2 leading-snug min-h-[2.5rem]">
           {item.title}
         </h4>
-        {item.detailsLine && (
-          <p className="text-[10px] text-muted mt-1 line-clamp-2">{item.detailsLine}</p>
-        )}
+        <ExperiencePropertyLabels item={item} />
+        <div className="mt-1.5">
+          <ExperienceMetaLine item={item} />
+        </div>
 
         <div className="border-t border-gamana-100 mt-3 pt-2.5 flex items-end justify-between gap-2">
           <div className="min-w-0">

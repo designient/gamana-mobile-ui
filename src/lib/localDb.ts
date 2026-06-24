@@ -191,7 +191,14 @@ function matchesQuery(haystack: string, words: string[]): boolean {
 
 export function searchAll(query: string): SearchResults {
   const q = query.trim().toLowerCase();
-  const empty: SearchResults = { stories: [], topics: [], narrators: [], cities: [], total: 0 };
+  const empty: SearchResults = {
+    stories: [],
+    topics: [],
+    narrators: [],
+    cities: [],
+    experiences: [],
+    total: 0,
+  };
   if (!q) return empty;
   const words = q.split(/\s+/);
 
@@ -214,6 +221,7 @@ export function searchAll(query: string): SearchResults {
     topics,
     narrators,
     cities,
+    experiences: [],
     total: stories.length + topics.length + narrators.length + cities.length,
   };
 }

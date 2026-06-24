@@ -1,12 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Coins, Lock, Star, CheckCircle2, PlayCircle } from 'lucide-react';
 import type { CityPack } from '../../types';
 import { getContentAccess } from '../../lib/localDb';
-import TourFilterBar, { type TourFilter, type TourSort } from '../shared/TourFilterBar';
 
 interface RecommendedToursProps {
   tours: CityPack[];
   onPreviewTour: (tour: CityPack) => void;
+  onViewAll?: () => void;
 }
 
 function isPackUnlocked(packId: string, index: number): boolean {
@@ -14,55 +14,29 @@ function isPackUnlocked(packId: string, index: number): boolean {
   return index === 0 || (access.is_unlocked && !access.is_expired);
 }
 
-export default function RecommendedTours({ tours, onPreviewTour }: RecommendedToursProps) {
-  const [activeFilter, setActiveFilter] = useState<TourFilter>('all');
-  const [sortBy, setSortBy] = useState<TourSort>('recommended');
-
+export default function RecommendedTours({ tours, onPreviewTour, onViewAll }: RecommendedToursProps) {
   const filteredTours = useMemo(() => {
     let result = tours.map((t, i) => ({ tour: t, originalIndex: i }));
-
-    if (activeFilter === 'unlocked') {
-      result = result.filter(({ tour, originalIndex }) => isPackUnlocked(tour.id, originalIndex));
-    } else if (activeFilter === 'locked') {
-      result = result.filter(({ tour, originalIndex }) => !isPackUnlocked(tour.id, originalIndex));
-    } else if (activeFilter === 'short') {
-      result = result.filter(({ tour }) => tour.story_count <= 3);
-    } else if (activeFilter === 'long') {
-      result = result.filter(({ tour }) => tour.story_count >= 4);
-    }
-
-    switch (sortBy) {
-      case 'price_asc':
-        result.sort((a, b) => a.tour.coin_cost - b.tour.coin_cost);
-        break;
-      case 'price_desc':
-        result.sort((a, b) => b.tour.coin_cost - a.tour.coin_cost);
-        break;
-      case 'duration_asc':
-        result.sort((a, b) => a.tour.total_duration_seconds - b.tour.total_duration_seconds);
-        break;
-      case 'duration_desc':
-        result.sort((a, b) => b.tour.total_duration_seconds - a.tour.total_duration_seconds);
-        break;
-      default:
-        result.sort((a, b) => a.tour.sort_order - b.tour.sort_order);
-    }
-
+    result.sort((a, b) => a.tour.sort_order - b.tour.sort_order);
     return result;
-  }, [tours, activeFilter, sortBy]);
+  }, [tours]);
 
   if (!tours || tours.length === 0) return null;
 
   return (
     <div className="mt-5 mb-2 relative">
-      <h3 className="text-sm font-semibold text-heading mb-3 px-4">Audio Tours Near You</h3>
-      <TourFilterBar
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        compact
-      />
+      <div className="px-4 mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-heading">Walking Tours Near You</h3>
+        {onViewAll && (
+          <button
+            type="button"
+            onClick={onViewAll}
+            className="text-xs font-semibold text-gamana-600"
+          >
+            View all
+          </button>
+        )}
+      </div>
       <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide snap-x">
         <div className="flex-none w-4" aria-hidden />
         {filteredTours.map(({ tour, originalIndex }) => {

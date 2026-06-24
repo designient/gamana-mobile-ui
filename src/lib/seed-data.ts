@@ -371,6 +371,9 @@ export const stories: Story[] = [
     trust_level: 'legend',
     is_featured: false,
     image_url: 'https://images.pexels.com/photos/5765818/pexels-photo-5765818.jpeg?auto=compress&cs=tinysrgb&w=600',
+    linkedBookableExperienceId: 'exp-001',
+    linkedBookableExperienceSlug: 'heritage-old-bengaluru-walk',
+    linkedBookableExperienceLabel: 'Book the guided Heritage Walk',
   },
   {
     id: '00000000-0000-0000-0000-000000000103',
@@ -397,6 +400,9 @@ export const stories: Story[] = [
     trust_level: 'verified',
     is_featured: false,
     image_url: 'https://images.pexels.com/photos/3522880/pexels-photo-3522880.jpeg?auto=compress&cs=tinysrgb&w=600',
+    linkedBookableExperienceId: 'exp-003',
+    linkedBookableExperienceSlug: 'malleswaram-food-walk',
+    linkedBookableExperienceLabel: 'Book the Malleswaram Food Walk',
   },
   {
     id: '00000000-0000-0000-0000-000000000105',
@@ -410,6 +416,9 @@ export const stories: Story[] = [
     trust_level: 'verified',
     is_featured: false,
     image_url: 'https://images.pexels.com/photos/1179229/pexels-photo-1179229.jpeg?auto=compress&cs=tinysrgb&w=600',
+    linkedBookableExperienceId: 'exp-005',
+    linkedBookableExperienceSlug: 'iskcon-temple-spiritual-tour',
+    linkedBookableExperienceLabel: 'Book the ISKCON Spiritual Tour',
   },
   {
     id: '00000000-0000-0000-0000-000000000106',
